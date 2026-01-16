@@ -27,6 +27,8 @@ export class NamespacesRepository {
           name: input.name,
           description: input.description,
           user_id: input.user_id,
+          default_defer_loading: input.default_defer_loading,
+          default_search_method: input.default_search_method,
         })
         .returning();
 
@@ -145,6 +147,8 @@ export class NamespacesRepository {
         created_at: namespacesTable.created_at,
         updated_at: namespacesTable.updated_at,
         user_id: namespacesTable.user_id,
+        default_defer_loading: namespacesTable.default_defer_loading,
+        default_search_method: namespacesTable.default_search_method,
       })
       .from(namespacesTable)
       .where(eq(namespacesTable.uuid, uuid));
@@ -295,6 +299,8 @@ export class NamespacesRepository {
           name: input.name,
           description: input.description,
           user_id: input.user_id,
+          default_defer_loading: input.default_defer_loading,
+          default_search_method: input.default_search_method,
           updated_at: new Date(),
         })
         .where(eq(namespacesTable.uuid, input.uuid))

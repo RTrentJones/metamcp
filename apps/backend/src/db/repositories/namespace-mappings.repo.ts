@@ -3,13 +3,16 @@ import {
   NamespaceToolOverridesUpdate,
   NamespaceToolStatusUpdate,
 } from "@repo/zod-types";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, or, sql } from "drizzle-orm";
 
 import { db } from "../index";
 import {
+  mcpServersTable,
   namespaceServerMappingsTable,
   namespaceToolMappingsTable,
+  toolsTable,
 } from "../schema";
+import { sanitizeName } from "../../lib/metamcp/utils";
 
 export class NamespaceMappingsRepository {
   async updateServerStatus(input: NamespaceServerStatusUpdate) {
@@ -165,6 +168,83 @@ export class NamespaceMappingsRepository {
         },
       })
       .returning();
+  }
+
+  /**
+   * Find tool defer_loading overrides for a namespace
+   * Returns a map of tool names to boolean values (ENABLED=true, DISABLED=false)
+   * Excludes tools with INHERIT (no explicit override)
+   *
+   * @param namespaceUuid - Namespace UUID
+   * @returns Map of tool names to defer_loading boolean values
+   */
+  async findToolDeferLoadingOverrides(
+    namespaceUuid: string
+  ): Promise<Record<string, boolean>> {
+    const mappings = await db
+      .select({
+        defer_loading: namespaceToolMappingsTable.defer_loading,
+        tool_name: toolsTable.name,
+        server_name: mcpServersTable.name,
+      })
+      .from(namespaceToolMappingsTable)
+      .innerJoin(
+        toolsTable,
+        eq(namespaceToolMappingsTable.tool_uuid, toolsTable.uuid)
+      )
+      .innerJoin(
+        mcpServersTable,
+        eq(namespaceToolMappingsTable.mcp_server_uuid, mcpServersTable.uuid)
+      )
+      .where(
+        and(
+          eq(namespaceToolMappingsTable.namespace_uuid, namespaceUuid),
+          // Only include explicit overrides (not INHERIT)
+          or(
+            eq(namespaceToolMappingsTable.defer_loading, "ENABLED"),
+            eq(namespaceToolMappingsTable.defer_loading, "DISABLED")
+          )
+        )
+      );
+
+    // Build the overrides map: tool name -> boolean
+    const overrides: Record<string, boolean> = {};
+    for (const mapping of mappings) {
+      // Construct full tool name: serverName__toolName
+      const fullToolName = `${sanitizeName(mapping.server_name)}__${mapping.tool_name}`;
+      overrides[fullToolName] = mapping.defer_loading === "ENABLED";
+    }
+
+    return overrides;
+  }
+
+  /**
+   * Update tool defer_loading value for a specific tool mapping
+   *
+   * @param input - Update input
+   * @returns Updated mapping
+   */
+  async updateToolDeferLoading(input: {
+    namespaceUuid: string;
+    toolUuid: string;
+    serverUuid: string;
+    deferLoading: "ENABLED" | "DISABLED" | "INHERIT";
+  }) {
+    const [updatedMapping] = await db
+      .update(namespaceToolMappingsTable)
+      .set({
+        defer_loading: input.deferLoading,
+      })
+      .where(
+        and(
+          eq(namespaceToolMappingsTable.namespace_uuid, input.namespaceUuid),
+          eq(namespaceToolMappingsTable.tool_uuid, input.toolUuid),
+          eq(namespaceToolMappingsTable.mcp_server_uuid, input.serverUuid)
+        )
+      )
+      .returning();
+
+    return updatedMapping;
   }
 }
 

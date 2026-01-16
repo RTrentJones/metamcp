@@ -21,6 +21,8 @@ export class EndpointsRepository {
         enable_oauth: input.enable_oauth ?? false,
         use_query_param_auth: input.use_query_param_auth ?? false,
         user_id: input.user_id,
+        override_defer_loading: input.override_defer_loading,
+        override_search_method: input.override_search_method,
       })
       .returning();
 
@@ -204,6 +206,8 @@ export class EndpointsRepository {
         created_at: endpointsTable.created_at,
         updated_at: endpointsTable.updated_at,
         user_id: endpointsTable.user_id,
+        override_defer_loading: endpointsTable.override_defer_loading,
+        override_search_method: endpointsTable.override_search_method,
       })
       .from(endpointsTable)
       .where(eq(endpointsTable.uuid, uuid));
@@ -319,6 +323,8 @@ export class EndpointsRepository {
         enable_oauth: input.enable_oauth,
         use_query_param_auth: input.use_query_param_auth,
         user_id: input.user_id,
+        override_defer_loading: input.override_defer_loading,
+        override_search_method: input.override_search_method,
         updated_at: new Date(),
       })
       .where(eq(endpointsTable.uuid, input.uuid))
