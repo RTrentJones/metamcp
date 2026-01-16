@@ -23,6 +23,12 @@ import { z } from "zod";
 
 import { toolsImplementations } from "../../trpc/tools.impl";
 import { configService } from "../config.service";
+import {
+  TOOL_SEARCH_TOOL_NAME,
+  TOOL_SEARCH_TOOL_DEFINITION,
+  executeToolSearch,
+  shouldIncludeSearchTool,
+} from "./builtin-tools/tool-search-tool";
 import { ConnectedClient } from "./client";
 import { getMcpServers } from "./fetch-metamcp";
 import { mcpServerPool } from "./mcp-server-pool";
@@ -292,9 +298,20 @@ export const createServer = async (
       }),
     );
 
+    // TODO (Phase 5): Add metamcp_search_tools if defer_loading is enabled
+    // This requires fetching namespace config from database (Phase 5 repository updates)
+    // Placeholder logic:
+    // const namespaceConfig = await namespacesRepository.findByUuid(context.namespaceUuid);
+    // if (namespaceConfig && shouldIncludeSearchTool({
+    //   default_defer_loading: namespaceConfig.default_defer_loading,
+    //   default_search_method: namespaceConfig.default_search_method
+    // })) {
+    //   allTools.push(TOOL_SEARCH_TOOL_DEFINITION);
+    // }
+
     const totalTime = performance.now() - startTime;
     console.log(`[DEBUG-TOOLS] ✅ tools/list completed in ${totalTime.toFixed(2)}ms, returning ${allTools.length} tools`);
-    
+
     return { tools: allTools };
   };
 
@@ -304,6 +321,24 @@ export const createServer = async (
     _context,
   ) => {
     const { name, arguments: args } = request.params;
+
+    // Check if this is a call to the built-in search tool
+    if (name === TOOL_SEARCH_TOOL_NAME) {
+      // TODO (Phase 5): Execute tool search with proper config from database
+      // This requires:
+      // 1. Fetching namespace config (default_search_method, maxResults)
+      // 2. Fetching tool search config (BM25 params, regex pattern, etc.)
+      // 3. Getting list of all available tools
+      // Placeholder:
+      // const namespaceConfig = await namespacesRepository.findByUuid(context.namespaceUuid);
+      // const searchConfig = await toolSearchConfigRepository.findByNamespaceUuid(context.namespaceUuid);
+      // const availableTools = allTools; // from list_tools
+      // return await executeToolSearch(args, availableTools, resolvedConfig);
+
+      throw new Error(
+        `Tool search not yet fully implemented. Requires Phase 5 repository updates. Tool: ${name}`
+      );
+    }
 
     // Parse the tool name using shared utility
     const parsed = parseToolName(name);
