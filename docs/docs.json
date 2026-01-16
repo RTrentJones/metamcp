@@ -50,6 +50,7 @@
               "en/concepts/mcp-servers",
               "en/concepts/namespaces",
               "en/concepts/endpoints",
+              "en/concepts/tool-search",
               "en/concepts/middleware",
               "en/concepts/inspector"
             ]
@@ -102,6 +103,7 @@
               "cn/concepts/mcp-servers",
               "cn/concepts/namespaces",
               "cn/concepts/endpoints",
+              "cn/concepts/tool-search",
               "cn/concepts/middleware",
               "cn/concepts/inspector"
             ]
