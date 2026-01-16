@@ -56,6 +56,22 @@ export interface ToolSearchArguments {
 }
 
 /**
+ * Type guard to validate unknown arguments match ToolSearchArguments
+ *
+ * @param args - Unknown arguments from MCP request
+ * @returns True if args has the shape of ToolSearchArguments
+ */
+export function isToolSearchArguments(args: unknown): args is ToolSearchArguments {
+  return (
+    args !== null &&
+    typeof args === 'object' &&
+    'query' in args &&
+    typeof (args as any).query === 'string' &&
+    (!('max_results' in args) || typeof (args as any).max_results === 'number')
+  );
+}
+
+/**
  * Tool reference block as defined by Anthropic
  */
 export interface ToolReferenceBlock {

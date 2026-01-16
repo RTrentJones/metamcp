@@ -32,6 +32,7 @@ import {
   TOOL_SEARCH_TOOL_DEFINITION,
   executeToolSearch,
   shouldIncludeSearchTool,
+  isToolSearchArguments,
 } from "./builtin-tools/tool-search-tool";
 import { ConnectedClient } from "./client";
 import { getMcpServers } from "./fetch-metamcp";
@@ -327,6 +328,19 @@ export const createServer = async (
 
     // Check if this is a call to the built-in search tool
     if (name === TOOL_SEARCH_TOOL_NAME) {
+      // Validate and narrow args type using type guard
+      if (!isToolSearchArguments(args)) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Tool search requires a 'query' parameter (string) and optional 'max_results' (number)",
+            },
+          ],
+          isError: true,
+        };
+      }
+
       // Execute tool search with proper config from database
       // 1. Fetch namespace config for default_search_method
       const namespaceConfig = await namespacesRepository.findByUuid(context.namespaceUuid);
@@ -336,17 +350,30 @@ export const createServer = async (
 
       // 3. Get list of all available tools by calling list_tools
       const toolsResult = await originalListToolsHandler({ method: "tools/list" }, context);
-      const availableTools = toolsResult.tools;
+
+      // Map tools to include serverUuid (required by executeToolSearch)
+      const availableTools = toolsResult.tools
+        .filter(tool => tool.name !== TOOL_SEARCH_TOOL_NAME) // Exclude the search tool itself
+        .map(tool => ({
+          tool,
+          serverUuid: toolToServerUuid[tool.name] || "", // Look up serverUuid from the map
+        }))
+        .filter(item => item.serverUuid); // Filter out tools without serverUuid
 
       // 4. Resolve configuration with proper defaults
       const resolvedConfig = {
-        search_method: namespaceConfig?.default_search_method ?? "NONE",
-        max_results: searchConfig?.max_results ?? 10,
-        provider_config: searchConfig?.provider_config ?? null,
+        searchMethod: namespaceConfig?.default_search_method ?? "NONE",
+        maxResults: searchConfig?.max_results ?? 10,
+        providerConfig: searchConfig?.provider_config ?? undefined,
       };
 
       // 5. Execute the tool search
-      return await executeToolSearch(args, availableTools, resolvedConfig);
+      // TypeScript now knows args is ToolSearchArguments - no cast needed
+      const result = await executeToolSearch(args, availableTools, resolvedConfig);
+
+      // Return as any because tool_reference is an Anthropic extension to MCP
+      // The MCP SDK doesn't know about tool_reference content type, but will pass it through
+      return result as any;
     }
 
     // Parse the tool name using shared utility
