@@ -42,6 +42,7 @@ English | [中文](./README_cn.md)
   - [⚙️ **Middleware**](#️-middleware)
   - [🔍 **Inspector**](#-inspector)
   - [✏️ **Tool Overrides \& Annotations**](#️-tool-overrides--annotations)
+  - [🔍 **Tool Search (Built-in)**](#-tool-search-built-in)
 - [🚀 Quick Start](#-quick-start)
   - [🐳 Run with Docker Compose (Recommended)](#-run-with-docker-compose-recommended)
   - [📦 Build development environment with Dev Containers (VSCode/Cursor)](#-build-development-environment-with-dev-containers-vscodecursor)
@@ -75,7 +76,7 @@ English | [中文](./README_cn.md)
 - 🏷️ **Group MCP servers into namespaces, host them as meta-MCPs, and assign public endpoints** (SSE or Streamable HTTP), with auth. One-click to switch a namespace for an endpoint.
 -  🎯 **Pick tools you only need when remixing MCP servers.** Apply other **pluggable middleware** around observability, security, etc. (coming soon)
 -  🔍 **Use as enhanced MCP inspector** with saved server configs, and inspect your MetaMCP endpoints in house to see if it works or not.
--  🔍 **Use as Elasticsearch for MCP tool selection** (coming soon)
+-  🔍 **Intelligent tool search** - Automatically search and filter relevant tools using the built-in `metamcp_search_tools` tool. Configure search behavior at namespace or endpoint level to optimize tool selection for LLMs.
 
 Generally developers can use MetaMCP as **infrastructure** to host dynamically composed MCP servers through a unified endpoint, and build agents on top of it.
 
@@ -143,6 +144,35 @@ Similar to the official MCP inspector, but with **saved server configs** - MetaM
 - Each saved tool can be expanded and edited inline: update the display **name/title/description** or provide a JSON blob with namespace-specific annotations (for example `{ "annotations": { "readOnlyHint": false } }`).
 - Badges in the table ("Overridden", "Annotations") show which tools currently have custom metadata. Hover them to read a tooltip describing what was overridden.
 - Annotation overrides are merged with whatever the upstream MCP server returns, so you can safely add custom UI hints without losing provider metadata.
+
+### 🔍 **Tool Search (Built-in)**
+MetaMCP includes a built-in tool search feature via the `metamcp_search_tools` tool that helps LLMs find relevant tools dynamically:
+
+**Key Features:**
+- **Automatic tool discovery** - The `metamcp_search_tools` tool accepts a search query and returns matching tools with `tool_reference` blocks (Anthropic extension to MCP)
+- **Defer-loading control** - Configure when tools are loaded:
+  - `DISABLED` - Load all tools upfront (traditional behavior)
+  - `ENABLED` - Only load tools when explicitly searched via `metamcp_search_tools`
+  - `INHERIT` - Inherit defer-loading behavior from parent namespace
+- **Multi-level configuration** - Set tool search behavior at namespace level with endpoint-level overrides
+- **Flexible provider config** - Store search provider parameters in JSONB format for future extensibility (BM25, embeddings, etc.)
+
+**How it works:**
+1. Configure defer-loading behavior for a namespace or endpoint
+2. When defer-loading is enabled, only `metamcp_search_tools` is initially available
+3. LLM calls `metamcp_search_tools` with a query to discover relevant tools
+4. MetaMCP returns matching tools with `tool_reference` blocks
+5. LLM can then use the discovered tools with `tool_use` blocks
+
+**Configuration:**
+- Navigate to **Namespace** → **Tool Search Config** to configure search behavior
+- Set `max_results` to limit the number of returned tools (default: 5)
+- Configure `provider_config` for future search providers (currently supports REGEX pattern matching)
+
+This feature is particularly useful for:
+- Large namespaces with many tools where loading all tools upfront is inefficient
+- Dynamic tool selection based on user queries
+- Optimizing context window usage in LLMs
 
 ## 🚀 Quick Start
 
