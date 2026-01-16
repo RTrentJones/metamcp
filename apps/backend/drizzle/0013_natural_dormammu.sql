@@ -3,10 +3,7 @@ CREATE TYPE "public"."tool_search_method" AS ENUM('NONE', 'REGEX', 'BM25', 'EMBE
 CREATE TABLE "tool_search_config" (
 	"uuid" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"namespace_uuid" uuid NOT NULL,
-	"search_method" "tool_search_method" DEFAULT 'REGEX' NOT NULL,
-	"regex_pattern" text,
-	"bm25_config" jsonb,
-	"embeddings_config" jsonb,
+	"provider_config" jsonb,
 	"max_results" integer DEFAULT 5 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,

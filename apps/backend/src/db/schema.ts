@@ -508,19 +508,12 @@ export const toolSearchConfigTable = pgTable(
     namespace_uuid: uuid("namespace_uuid")
       .notNull()
       .references(() => namespacesTable.uuid, { onDelete: "cascade" }),
-    search_method: toolSearchMethodEnum("search_method")
-      .notNull()
-      .default(ToolSearchMethodEnum.Enum.REGEX),
-    regex_pattern: text("regex_pattern"),
-    bm25_config: jsonb("bm25_config").$type<{
-      k1?: number;
-      b?: number;
-      fields?: string[];
-    }>(),
-    embeddings_config: jsonb("embeddings_config").$type<{
-      model?: string;
-      similarity_threshold?: number;
-    }>(),
+    // Generic provider config for flexible configuration storage
+    // Structure depends on search_method from namespace:
+    // - BM25: {k1?: number, b?: number, fields?: string[]}
+    // - REGEX: {pattern?: string, flags?: string}
+    // - EMBEDDINGS: {model?: string, similarity_threshold?: number}
+    provider_config: jsonb("provider_config").$type<Record<string, unknown>>(),
     max_results: integer("max_results").notNull().default(5),
     created_at: timestamp("created_at", { withTimezone: true })
       .notNull()

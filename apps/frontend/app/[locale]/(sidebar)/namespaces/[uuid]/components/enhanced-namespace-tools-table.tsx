@@ -406,7 +406,7 @@ export function EnhancedNamespaceToolsTable({
     }
 
     // Cycle through: INHERIT -> ENABLED -> DISABLED -> INHERIT
-    let newDeferLoading: string;
+    let newDeferLoading: "ENABLED" | "DISABLED" | "INHERIT";
     if (tool.defer_loading === DeferLoadingBehaviorEnum.Enum.ENABLED) {
       newDeferLoading = DeferLoadingBehaviorEnum.Enum.DISABLED;
     } else if (tool.defer_loading === DeferLoadingBehaviorEnum.Enum.DISABLED) {

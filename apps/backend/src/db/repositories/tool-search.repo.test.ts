@@ -42,7 +42,7 @@ describe("Tool Search Repositories - Integration Tests", () => {
         type: "STDIO",
         command: "npx",
         args: ["-y", "@modelcontextprotocol/server-everything"],
-        env: [],
+        env: {},
         user_id: testUserId,
       })
       .returning();
@@ -54,7 +54,7 @@ describe("Tool Search Repositories - Integration Tests", () => {
       .values({
         name: "test_tool",
         description: "A test tool",
-        input_schema: {},
+        toolSchema: { type: "object" },
         mcp_server_uuid: testServerUuid,
       })
       .returning();
@@ -182,6 +182,9 @@ describe("Tool Search Repositories - Integration Tests", () => {
       const newEndpoint = await endpointsRepository.create({
         name: "new-test-endpoint-" + Date.now(),
         namespace_uuid: testNamespaceUuid,
+        enable_api_key_auth: true,
+        enable_oauth: false,
+        use_query_param_auth: false,
         override_defer_loading: "ENABLED",
         override_search_method: "BM25",
       });
@@ -198,6 +201,8 @@ describe("Tool Search Repositories - Integration Tests", () => {
     it("should update endpoint tool search overrides", async () => {
       const updated = await endpointsRepository.update({
         uuid: testEndpointUuid,
+        name: "test-endpoint-repo-updated",
+        namespace_uuid: testNamespaceUuid,
         override_defer_loading: "DISABLED",
         override_search_method: "NONE",
       });
@@ -210,6 +215,9 @@ describe("Tool Search Repositories - Integration Tests", () => {
       const newEndpoint = await endpointsRepository.create({
         name: "default-override-test-" + Date.now(),
         namespace_uuid: testNamespaceUuid,
+        enable_api_key_auth: true,
+        enable_oauth: false,
+        use_query_param_auth: false,
       });
 
       expect(newEndpoint.override_defer_loading).toBe("INHERIT"); // Schema default

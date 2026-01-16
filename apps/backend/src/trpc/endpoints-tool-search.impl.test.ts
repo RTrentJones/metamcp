@@ -26,7 +26,7 @@ describe("Endpoint Tool Search Overrides - Integration Tests", () => {
         type: "STDIO",
         command: "npx",
         args: ["-y", "@modelcontextprotocol/server-everything"],
-        env: [],
+        env: {},
         user_id: testUserId,
       })
       .returning();

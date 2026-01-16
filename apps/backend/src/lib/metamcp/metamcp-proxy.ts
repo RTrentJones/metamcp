@@ -170,11 +170,11 @@ export const createServer = async (
     const allServerEntries = Object.entries(serverParams);
 
     console.log(`[DEBUG-TOOLS] 📋 Processing ${allServerEntries.length} servers`);
-    
+
     await Promise.allSettled(
       allServerEntries.map(async ([mcpServerUuid, params]) => {
         console.log(`[DEBUG-TOOLS] 🔧 Server: ${params.name || mcpServerUuid}`);
-        
+
         // Skip if we've already visited this server to prevent circular references
         if (visitedServers.has(mcpServerUuid)) {
           console.log(`[DEBUG-TOOLS] ⏭️  Skipping already visited: ${params.name}`);
@@ -245,7 +245,7 @@ export const createServer = async (
             cursor = result.nextCursor;
             hasMore = !!result.nextCursor;
           }
-          
+
           console.log(`[DEBUG-TOOLS] ⏱️  Fetched ${allServerTools.length} tools from ${serverName} in ${(performance.now() - toolFetchStart).toFixed(2)}ms`);
 
           // Save original tools to database (before middleware processing)
@@ -255,7 +255,7 @@ export const createServer = async (
             // PERFORMANCE OPTIMIZATION: Check hash FIRST to avoid expensive operations
             const toolNames = allServerTools.map((tool) => tool.name);
             const hasChanged = toolsSyncCache.hasChanged(mcpServerUuid, toolNames);
-            
+
             console.log(`[DEBUG-TOOLS] 🔍 Hash check for ${serverName}: ${hasChanged ? 'CHANGED' : 'UNCHANGED'}`);
 
             if (hasChanged) {
@@ -268,7 +268,7 @@ export const createServer = async (
               if (toolsToSave.length > 0) {
                 // Update cache
                 toolsSyncCache.update(mcpServerUuid, toolNames);
-                
+
                 // Sync with cleanup
                 await toolsImplementations.sync({
                   tools: toolsToSave,
@@ -303,7 +303,7 @@ export const createServer = async (
       }),
     );
 
-    // Add metamcp_search_tools if defer_loading is enabled (Phase 5 complete)
+    // Add metamcp_search_tools if defer_loading is enabled
     const namespaceConfig = await namespacesRepository.findByUuid(context.namespaceUuid);
     if (namespaceConfig && shouldIncludeSearchTool({
       default_defer_loading: namespaceConfig.default_defer_loading ?? false,
@@ -321,13 +321,13 @@ export const createServer = async (
   // Original Call Tool Handler
   const originalCallToolHandler: CallToolHandler = async (
     request,
-    _context,
+    context,
   ) => {
     const { name, arguments: args } = request.params;
 
     // Check if this is a call to the built-in search tool
     if (name === TOOL_SEARCH_TOOL_NAME) {
-      // Execute tool search with proper config from database (Phase 5 complete)
+      // Execute tool search with proper config from database
       // 1. Fetch namespace config for default_search_method
       const namespaceConfig = await namespacesRepository.findByUuid(context.namespaceUuid);
 
@@ -481,8 +481,7 @@ export const createServer = async (
       return result as CallToolResult;
     } catch (error) {
       console.error(
-        `Error calling tool "${name}" through ${
-          clientForTool.client.getServerVersion()?.name || "unknown"
+        `Error calling tool "${name}" through ${clientForTool.client.getServerVersion()?.name || "unknown"
         }:`,
         error,
       );
@@ -558,8 +557,7 @@ export const createServer = async (
       return response;
     } catch (error) {
       console.error(
-        `Error getting prompt through ${
-          clientForPrompt.client.getServerVersion()?.name
+        `Error getting prompt through ${clientForPrompt.client.getServerVersion()?.name
         }:`,
         error,
       );
@@ -788,8 +786,7 @@ export const createServer = async (
       );
     } catch (error) {
       console.error(
-        `Error reading resource through ${
-          clientForResource.client.getServerVersion()?.name
+        `Error reading resource through ${clientForResource.client.getServerVersion()?.name
         }:`,
         error,
       );

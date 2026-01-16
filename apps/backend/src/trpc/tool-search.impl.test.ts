@@ -29,7 +29,7 @@ describe("Tool Search tRPC Implementations - Integration Tests", () => {
         type: "STDIO",
         command: "npx",
         args: ["-y", "@modelcontextprotocol/server-everything"],
-        env: [],
+        env: {},
         user_id: testUserId,
       })
       .returning();
@@ -41,7 +41,7 @@ describe("Tool Search tRPC Implementations - Integration Tests", () => {
       .values({
         name: "test_tool",
         description: "A test tool",
-        input_schema: {},
+        toolSchema: { type: "object" },
         mcp_server_uuid: testServerUuid,
       })
       .returning();

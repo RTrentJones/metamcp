@@ -1,5 +1,5 @@
 {
-  "id": "9fb8a248-e30e-40ee-80ad-e316235dff23",
+  "id": "3043a963-fb3c-41f7-b6ad-19bc0d1de495",
   "prevId": "3c8fdc64-07ec-40a6-b784-5989fe669cb8",
   "version": "7",
   "dialect": "postgresql",
@@ -1631,28 +1631,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "search_method": {
-          "name": "search_method",
-          "type": "tool_search_method",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'REGEX'"
-        },
-        "regex_pattern": {
-          "name": "regex_pattern",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bm25_config": {
-          "name": "bm25_config",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "embeddings_config": {
-          "name": "embeddings_config",
+        "provider_config": {
+          "name": "provider_config",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false

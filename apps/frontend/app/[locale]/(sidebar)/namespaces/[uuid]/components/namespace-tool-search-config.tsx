@@ -1,6 +1,6 @@
 "use client";
 
-import { Namespace, ToolSearchMethodEnum } from "@repo/zod-types";
+import { NamespaceWithServers, ToolSearchMethodEnum } from "@repo/zod-types";
 import { Info, Save } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -27,7 +27,7 @@ import { useTranslations } from "@/hooks/useTranslations";
 import { trpc } from "@/lib/trpc";
 
 interface NamespaceToolSearchConfigProps {
-  namespace: Namespace;
+  namespace: NamespaceWithServers;
 }
 
 export function NamespaceToolSearchConfig({
@@ -121,7 +121,7 @@ export function NamespaceToolSearchConfig({
     updateNamespaceMutation.mutate({
       uuid: namespace.uuid,
       name: namespace.name,
-      description: namespace.description,
+      description: namespace.description ?? undefined,
       mcpServerUuids: namespace.servers?.map((s) => s.uuid),
       default_defer_loading: defaultDeferLoading,
       default_search_method: defaultSearchMethod,
