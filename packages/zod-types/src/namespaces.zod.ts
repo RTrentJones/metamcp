@@ -6,6 +6,7 @@ import {
   McpServerStatusEnum,
 } from "./mcp-servers.zod";
 import { ToolSchema, ToolStatusEnum } from "./tools.zod";
+import { DeferLoadingBehaviorEnum, ToolSearchMethodEnum } from "./tool-search.zod";
 
 const ToolAnnotationsSchema = z.record(z.unknown());
 
@@ -15,6 +16,8 @@ export const createNamespaceFormSchema = z.object({
   description: z.string().optional(),
   mcpServerUuids: z.array(z.string()).optional(),
   user_id: z.string().nullable().optional(),
+  default_defer_loading: z.boolean().optional(),
+  default_search_method: ToolSearchMethodEnum.optional(),
 });
 
 export type CreateNamespaceFormData = z.infer<typeof createNamespaceFormSchema>;
@@ -24,6 +27,8 @@ export const editNamespaceFormSchema = z.object({
   description: z.string().optional(),
   mcpServerUuids: z.array(z.string()).optional(),
   user_id: z.string().nullable().optional(),
+  default_defer_loading: z.boolean().optional(),
+  default_search_method: ToolSearchMethodEnum.optional(),
 });
 
 export type EditNamespaceFormData = z.infer<typeof editNamespaceFormSchema>;
@@ -33,6 +38,8 @@ export const CreateNamespaceRequestSchema = z.object({
   description: z.string().optional(),
   mcpServerUuids: z.array(z.string()).optional(),
   user_id: z.string().nullable().optional(),
+  default_defer_loading: z.boolean().optional(),
+  default_search_method: ToolSearchMethodEnum.optional(),
 });
 
 export const NamespaceSchema = z.object({
@@ -42,6 +49,8 @@ export const NamespaceSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   user_id: z.string().nullable(),
+  default_defer_loading: z.boolean().optional(),
+  default_search_method: ToolSearchMethodEnum.optional(),
 });
 
 // Server within namespace schema - extends McpServerSchema with namespace-specific status
@@ -59,6 +68,7 @@ export const NamespaceToolSchema = ToolSchema.extend({
   overrideTitle: z.string().nullable().optional(),
   overrideDescription: z.string().nullable().optional(),
   overrideAnnotations: ToolAnnotationsSchema.nullable().optional(),
+  defer_loading: DeferLoadingBehaviorEnum.optional(),
 });
 
 export const NamespaceWithServersSchema = NamespaceSchema.extend({
@@ -100,6 +110,8 @@ export const UpdateNamespaceRequestSchema = z.object({
   description: z.string().optional(),
   mcpServerUuids: z.array(z.string()).optional(),
   user_id: z.string().nullable().optional(),
+  default_defer_loading: z.boolean().optional(),
+  default_search_method: ToolSearchMethodEnum.optional(),
 });
 
 export const UpdateNamespaceResponseSchema = z.object({
@@ -236,6 +248,8 @@ export const NamespaceCreateInputSchema = z.object({
   description: z.string().nullable().optional(),
   mcpServerUuids: z.array(z.string()).optional(),
   user_id: z.string().nullable().optional(),
+  default_defer_loading: z.boolean().optional(),
+  default_search_method: ToolSearchMethodEnum.optional(),
 });
 
 export const NamespaceUpdateInputSchema = z.object({
@@ -244,6 +258,8 @@ export const NamespaceUpdateInputSchema = z.object({
   description: z.string().nullable().optional(),
   mcpServerUuids: z.array(z.string()).optional(),
   user_id: z.string().nullable().optional(),
+  default_defer_loading: z.boolean().optional(),
+  default_search_method: ToolSearchMethodEnum.optional(),
 });
 
 export const NamespaceServerStatusUpdateSchema = z.object({
@@ -289,6 +305,8 @@ export const DatabaseNamespaceSchema = z.object({
   created_at: z.date(),
   updated_at: z.date(),
   user_id: z.string().nullable(),
+  default_defer_loading: z.boolean().optional(),
+  default_search_method: ToolSearchMethodEnum.optional(),
 });
 
 export const DatabaseNamespaceServerSchema = z.object({
@@ -330,6 +348,7 @@ export const DatabaseNamespaceToolSchema = z.object({
   overrideTitle: z.string().nullable().optional(),
   overrideDescription: z.string().nullable().optional(),
   overrideAnnotations: ToolAnnotationsSchema.nullable().optional(),
+  defer_loading: DeferLoadingBehaviorEnum.optional(),
 });
 
 export type DatabaseNamespace = z.infer<typeof DatabaseNamespaceSchema>;

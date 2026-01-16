@@ -6,6 +6,7 @@ import { createMcpServersRouter } from "./mcp-servers";
 import { createNamespacesRouter } from "./namespaces";
 import { createOAuthRouter } from "./oauth";
 import { createToolsRouter } from "./tools";
+import { createToolSearchConfigRouter } from "./tool-search-config";
 
 export { createMcpServersRouter };
 export { createNamespacesRouter };
@@ -14,6 +15,7 @@ export { createOAuthRouter };
 export { createToolsRouter };
 export { createApiKeysRouter };
 export { createConfigRouter };
+export { createToolSearchConfigRouter };
 
 export const createFrontendRouter = (implementations: {
   mcpServers: Parameters<typeof createMcpServersRouter>[0];
@@ -24,6 +26,7 @@ export const createFrontendRouter = (implementations: {
   apiKeys: Parameters<typeof createApiKeysRouter>[0];
   config: Parameters<typeof createConfigRouter>[0];
   logs: Parameters<typeof createLogsRouter>[0];
+  toolSearchConfig: Parameters<typeof createToolSearchConfigRouter>[0];
 }) => {
   return {
     mcpServers: createMcpServersRouter(implementations.mcpServers),
@@ -34,5 +37,6 @@ export const createFrontendRouter = (implementations: {
     apiKeys: createApiKeysRouter(implementations.apiKeys),
     config: createConfigRouter(implementations.config),
     logs: createLogsRouter(implementations.logs),
+    toolSearchConfig: createToolSearchConfigRouter(implementations.toolSearchConfig),
   };
 };

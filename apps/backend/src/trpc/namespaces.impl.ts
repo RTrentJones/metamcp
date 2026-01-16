@@ -16,6 +16,8 @@ import {
   UpdateNamespaceToolOverridesResponseSchema,
   UpdateNamespaceToolStatusRequestSchema,
   UpdateNamespaceToolStatusResponseSchema,
+  UpdateToolDeferLoadingRequestSchema,
+  UpdateToolDeferLoadingResponseSchema,
 } from "@repo/zod-types";
 import { z } from "zod";
 
@@ -638,6 +640,66 @@ export const namespacesImplementations = {
       };
     } catch (error) {
       console.error("Error updating tool overrides:", error);
+      return {
+        success: false as const,
+        message:
+          error instanceof Error ? error.message : "Internal server error",
+      };
+    }
+  },
+
+  updateToolDeferLoading: async (
+    input: z.infer<typeof UpdateToolDeferLoadingRequestSchema>,
+    userId: string,
+  ): Promise<z.infer<typeof UpdateToolDeferLoadingResponseSchema>> => {
+    try {
+      // First, check if user has permission to update this namespace
+      const namespace = await namespacesRepository.findByUuid(
+        input.namespaceUuid,
+      );
+
+      if (!namespace) {
+        return {
+          success: false as const,
+          message: "Namespace not found",
+        };
+      }
+
+      // Check if user owns this namespace (only owners can update tool defer_loading)
+      if (namespace.user_id && namespace.user_id !== userId) {
+        return {
+          success: false as const,
+          message:
+            "Access denied: You can only update tool defer_loading for namespaces you own",
+        };
+      }
+
+      const updatedMapping =
+        await namespaceMappingsRepository.updateToolDeferLoading({
+          namespaceUuid: input.namespaceUuid,
+          toolUuid: input.toolUuid,
+          serverUuid: input.serverUuid,
+          deferLoading: input.deferLoading,
+        });
+
+      if (!updatedMapping) {
+        return {
+          success: false as const,
+          message: "Tool not found in namespace",
+        };
+      }
+
+      // TODO: Clear defer-loading cache if needed (Phase 8)
+      console.log(
+        `Updated tool defer_loading for namespace ${input.namespaceUuid}`,
+      );
+
+      return {
+        success: true as const,
+        message: "Tool defer_loading updated successfully",
+      };
+    } catch (error) {
+      console.error("Error updating tool defer_loading:", error);
       return {
         success: false as const,
         message:

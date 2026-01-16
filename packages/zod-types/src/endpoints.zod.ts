@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { DatabaseNamespaceSchema, NamespaceSchema } from "./namespaces.zod";
+import { DeferLoadingBehaviorEnum, ToolSearchMethodEnum } from "./tool-search.zod";
 
 // Endpoint schema definitions
 export const createEndpointFormSchema = z.object({
@@ -15,6 +16,8 @@ export const createEndpointFormSchema = z.object({
   useQueryParamAuth: z.boolean(),
   createMcpServer: z.boolean(),
   user_id: z.string().nullable().optional(),
+  override_defer_loading: DeferLoadingBehaviorEnum.optional(),
+  override_search_method: ToolSearchMethodEnum.nullable().optional(),
 });
 
 export const editEndpointFormSchema = z.object({
@@ -28,6 +31,8 @@ export const editEndpointFormSchema = z.object({
   enableOauth: z.boolean().optional(),
   useQueryParamAuth: z.boolean().optional(),
   user_id: z.string().nullable().optional(),
+  override_defer_loading: DeferLoadingBehaviorEnum.optional(),
+  override_search_method: ToolSearchMethodEnum.nullable().optional(),
 });
 
 export const CreateEndpointRequestSchema = z.object({
@@ -42,6 +47,8 @@ export const CreateEndpointRequestSchema = z.object({
   useQueryParamAuth: z.boolean().default(false),
   createMcpServer: z.boolean().default(true),
   user_id: z.string().nullable().optional(),
+  override_defer_loading: DeferLoadingBehaviorEnum.optional(),
+  override_search_method: ToolSearchMethodEnum.nullable().optional(),
 });
 
 export const EndpointSchema = z.object({
@@ -55,6 +62,8 @@ export const EndpointSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   user_id: z.string().nullable(),
+  override_defer_loading: DeferLoadingBehaviorEnum.optional(),
+  override_search_method: ToolSearchMethodEnum.nullable().optional(),
 });
 
 // Extended endpoint schema with namespace details
@@ -92,6 +101,8 @@ export const UpdateEndpointRequestSchema = z.object({
   enableOauth: z.boolean().optional(),
   useQueryParamAuth: z.boolean().optional(),
   user_id: z.string().nullable().optional(),
+  override_defer_loading: DeferLoadingBehaviorEnum.optional(),
+  override_search_method: ToolSearchMethodEnum.nullable().optional(),
 });
 
 export const UpdateEndpointResponseSchema = z.object({
@@ -138,6 +149,8 @@ export const EndpointCreateInputSchema = z.object({
   enable_oauth: z.boolean().optional().default(false),
   use_query_param_auth: z.boolean().optional().default(false),
   user_id: z.string().nullable().optional(),
+  override_defer_loading: DeferLoadingBehaviorEnum.optional(),
+  override_search_method: ToolSearchMethodEnum.nullable().optional(),
 });
 
 export const EndpointUpdateInputSchema = z.object({
@@ -149,6 +162,8 @@ export const EndpointUpdateInputSchema = z.object({
   enable_oauth: z.boolean().optional(),
   use_query_param_auth: z.boolean().optional(),
   user_id: z.string().nullable().optional(),
+  override_defer_loading: DeferLoadingBehaviorEnum.optional(),
+  override_search_method: ToolSearchMethodEnum.nullable().optional(),
 });
 
 export type EndpointCreateInput = z.infer<typeof EndpointCreateInputSchema>;
@@ -166,6 +181,8 @@ export const DatabaseEndpointSchema = z.object({
   created_at: z.date(),
   updated_at: z.date(),
   user_id: z.string().nullable(),
+  override_defer_loading: DeferLoadingBehaviorEnum.optional(),
+  override_search_method: ToolSearchMethodEnum.nullable().optional(),
 });
 
 export const DatabaseEndpointWithNamespaceSchema =
