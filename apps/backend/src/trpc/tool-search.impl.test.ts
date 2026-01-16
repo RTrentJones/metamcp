@@ -399,4 +399,67 @@ describe("Tool Search tRPC Implementations - Integration Tests", () => {
       expect(mapping.defer_loading).toBe("ENABLED");
     });
   });
+
+  describe("Namespace Defaults - Frontend Integration", () => {
+    it("should update namespace with default_defer_loading and default_search_method", async () => {
+      // Update namespace with defaults
+      const updateResult = await namespacesImplementations.update(
+        {
+          uuid: testNamespaceUuid,
+          name: "test-namespace-trpc",
+          description: "Test namespace with defaults",
+          default_defer_loading: true,
+          default_search_method: "BM25",
+        },
+        testUserId
+      );
+
+      expect(updateResult.success).toBe(true);
+      expect(updateResult.data?.default_defer_loading).toBe(true);
+      expect(updateResult.data?.default_search_method).toBe("BM25");
+
+      // Verify in database
+      const [dbNamespace] = await db
+        .select()
+        .from(namespacesTable)
+        .where(eq(namespacesTable.uuid, testNamespaceUuid));
+
+      expect(dbNamespace.default_defer_loading).toBe(true);
+      expect(dbNamespace.default_search_method).toBe("BM25");
+    });
+
+    it("should handle null/undefined default values", async () => {
+      const updateResult = await namespacesImplementations.update(
+        {
+          uuid: testNamespaceUuid,
+          name: "test-namespace-trpc",
+          default_defer_loading: false,
+          default_search_method: "NONE",
+        },
+        testUserId
+      );
+
+      expect(updateResult.success).toBe(true);
+      expect(updateResult.data?.default_defer_loading).toBe(false);
+      expect(updateResult.data?.default_search_method).toBe("NONE");
+    });
+
+    it("should accept all valid search methods", async () => {
+      const methods = ["NONE", "REGEX", "BM25", "EMBEDDINGS"] as const;
+
+      for (const method of methods) {
+        const updateResult = await namespacesImplementations.update(
+          {
+            uuid: testNamespaceUuid,
+            name: "test-namespace-trpc",
+            default_search_method: method,
+          },
+          testUserId
+        );
+
+        expect(updateResult.success).toBe(true);
+        expect(updateResult.data?.default_search_method).toBe(method);
+      }
+    });
+  });
 });

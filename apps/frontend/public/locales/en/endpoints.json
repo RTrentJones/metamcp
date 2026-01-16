@@ -85,7 +85,16 @@
     "updateSuccess": "Endpoint Updated",
     "updateSuccessDescription": "Endpoint has been updated successfully",
     "updateFailed": "Update Failed",
-    "updateFailedDescription": "Failed to update endpoint"
+    "updateFailedDescription": "Failed to update endpoint",
+    "toolSearchConfigSection": "Tool Search Configuration Overrides",
+    "toolSearchConfigTooltip": "Override namespace defaults for defer loading and search method for this specific endpoint",
+    "overrideDeferLoadingLabel": "Override Defer Loading",
+    "overrideDeferLoadingDescription": "Override the namespace default defer loading behavior for this endpoint",
+    "overrideSearchMethodLabel": "Override Search Method",
+    "overrideSearchMethodDescription": "Override the namespace default search method for this endpoint",
+    "useNamespaceDefault": "Use Namespace Default",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
   },
   "list": {
     "title": "Endpoints",

@@ -24,6 +24,10 @@ import { z } from "zod";
 import { toolsImplementations } from "../../trpc/tools.impl";
 import { configService } from "../config.service";
 import {
+  namespacesRepository,
+  toolSearchConfigRepository,
+} from "../../db/repositories";
+import {
   TOOL_SEARCH_TOOL_NAME,
   TOOL_SEARCH_TOOL_DEFINITION,
   executeToolSearch,
@@ -299,16 +303,14 @@ export const createServer = async (
       }),
     );
 
-    // TODO (Phase 5): Add metamcp_search_tools if defer_loading is enabled
-    // This requires fetching namespace config from database (Phase 5 repository updates)
-    // Placeholder logic:
-    // const namespaceConfig = await namespacesRepository.findByUuid(context.namespaceUuid);
-    // if (namespaceConfig && shouldIncludeSearchTool({
-    //   default_defer_loading: namespaceConfig.default_defer_loading,
-    //   default_search_method: namespaceConfig.default_search_method
-    // })) {
-    //   allTools.push(TOOL_SEARCH_TOOL_DEFINITION);
-    // }
+    // Add metamcp_search_tools if defer_loading is enabled (Phase 5 complete)
+    const namespaceConfig = await namespacesRepository.findByUuid(context.namespaceUuid);
+    if (namespaceConfig && shouldIncludeSearchTool({
+      default_defer_loading: namespaceConfig.default_defer_loading ?? false,
+      default_search_method: namespaceConfig.default_search_method ?? "NONE"
+    })) {
+      allTools.push(TOOL_SEARCH_TOOL_DEFINITION);
+    }
 
     const totalTime = performance.now() - startTime;
     console.log(`[DEBUG-TOOLS] ✅ tools/list completed in ${totalTime.toFixed(2)}ms, returning ${allTools.length} tools`);
@@ -325,20 +327,26 @@ export const createServer = async (
 
     // Check if this is a call to the built-in search tool
     if (name === TOOL_SEARCH_TOOL_NAME) {
-      // TODO (Phase 5): Execute tool search with proper config from database
-      // This requires:
-      // 1. Fetching namespace config (default_search_method, maxResults)
-      // 2. Fetching tool search config (BM25 params, regex pattern, etc.)
-      // 3. Getting list of all available tools
-      // Placeholder:
-      // const namespaceConfig = await namespacesRepository.findByUuid(context.namespaceUuid);
-      // const searchConfig = await toolSearchConfigRepository.findByNamespaceUuid(context.namespaceUuid);
-      // const availableTools = allTools; // from list_tools
-      // return await executeToolSearch(args, availableTools, resolvedConfig);
+      // Execute tool search with proper config from database (Phase 5 complete)
+      // 1. Fetch namespace config for default_search_method
+      const namespaceConfig = await namespacesRepository.findByUuid(context.namespaceUuid);
 
-      throw new Error(
-        `Tool search not yet fully implemented. Requires Phase 5 repository updates. Tool: ${name}`
-      );
+      // 2. Fetch tool search config for max_results and provider_config (BM25 params, etc.)
+      const searchConfig = await toolSearchConfigRepository.findByNamespaceUuid(context.namespaceUuid);
+
+      // 3. Get list of all available tools by calling list_tools
+      const toolsResult = await originalListToolsHandler({ method: "tools/list" }, context);
+      const availableTools = toolsResult.tools;
+
+      // 4. Resolve configuration with proper defaults
+      const resolvedConfig = {
+        search_method: namespaceConfig?.default_search_method ?? "NONE",
+        max_results: searchConfig?.max_results ?? 10,
+        provider_config: searchConfig?.provider_config ?? null,
+      };
+
+      // 5. Execute the tool search
+      return await executeToolSearch(args, availableTools, resolvedConfig);
     }
 
     // Parse the tool name using shared utility

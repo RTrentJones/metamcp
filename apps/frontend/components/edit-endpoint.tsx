@@ -5,8 +5,10 @@ import {
   editEndpointFormSchema,
   EndpointWithNamespace,
   UpdateEndpointRequest,
+  DeferLoadingBehaviorEnum,
+  ToolSearchMethodEnum,
 } from "@repo/zod-types";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -27,8 +29,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useTranslations } from "@/hooks/useTranslations";
 import { trpc } from "@/lib/trpc";
 import { createTranslatedZodResolver } from "@/lib/zod-resolver";
@@ -117,6 +131,8 @@ export function EditEndpoint({
       enableApiKeyAuth: true,
       enableOauth: false,
       useQueryParamAuth: false,
+      override_defer_loading: undefined,
+      override_search_method: undefined,
     },
   });
 
@@ -130,6 +146,8 @@ export function EditEndpoint({
         enableApiKeyAuth: endpoint.enable_api_key_auth ?? true,
         enableOauth: endpoint.enable_oauth ?? false,
         useQueryParamAuth: endpoint.use_query_param_auth ?? false,
+        override_defer_loading: endpoint.override_defer_loading,
+        override_search_method: endpoint.override_search_method,
       });
       setSelectedNamespaceUuid(endpoint.namespace.uuid);
       setSelectedNamespaceName(endpoint.namespace.name);
@@ -162,6 +180,8 @@ export function EditEndpoint({
         enableApiKeyAuth: data.enableApiKeyAuth,
         enableOauth: data.enableOauth,
         useQueryParamAuth: data.useQueryParamAuth,
+        override_defer_loading: data.override_defer_loading,
+        override_search_method: data.override_search_method,
       };
 
       // Use tRPC mutation
@@ -185,6 +205,8 @@ export function EditEndpoint({
       enableApiKeyAuth: true,
       enableOauth: false,
       useQueryParamAuth: false,
+      override_defer_loading: undefined,
+      override_search_method: undefined,
     });
     setSelectedNamespaceUuid("");
     setSelectedNamespaceName("");
@@ -381,6 +403,109 @@ export function EditEndpoint({
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* Tool Search Configuration Overrides */}
+            <div className="space-y-4 border-t pt-4">
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-medium">
+                  {t("endpoints:edit.toolSearchConfigSection")}
+                </h4>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs max-w-xs">
+                      {t("endpoints:edit.toolSearchConfigTooltip")}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+
+              {/* Override Defer Loading */}
+              <div className="space-y-2">
+                <label
+                  htmlFor="override-defer-loading"
+                  className="text-sm font-medium"
+                >
+                  {t("endpoints:edit.overrideDeferLoadingLabel")}
+                </label>
+                <Select
+                  value={editForm.watch("override_defer_loading") || "inherit"}
+                  onValueChange={(value) =>
+                    editForm.setValue(
+                      "override_defer_loading",
+                      value === "inherit"
+                        ? undefined
+                        : (value as any),
+                    )
+                  }
+                  disabled={isUpdating}
+                >
+                  <SelectTrigger id="override-defer-loading">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="inherit">
+                      {t("endpoints:edit.useNamespaceDefault")}
+                    </SelectItem>
+                    <SelectItem value={DeferLoadingBehaviorEnum.Enum.ENABLED}>
+                      {t("endpoints:edit.enabled")}
+                    </SelectItem>
+                    <SelectItem value={DeferLoadingBehaviorEnum.Enum.DISABLED}>
+                      {t("endpoints:edit.disabled")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {t("endpoints:edit.overrideDeferLoadingDescription")}
+                </p>
+              </div>
+
+              {/* Override Search Method */}
+              <div className="space-y-2">
+                <label
+                  htmlFor="override-search-method"
+                  className="text-sm font-medium"
+                >
+                  {t("endpoints:edit.overrideSearchMethodLabel")}
+                </label>
+                <Select
+                  value={editForm.watch("override_search_method") || "inherit"}
+                  onValueChange={(value) =>
+                    editForm.setValue(
+                      "override_search_method",
+                      value === "inherit" ? null : (value as any),
+                    )
+                  }
+                  disabled={isUpdating}
+                >
+                  <SelectTrigger id="override-search-method">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="inherit">
+                      {t("endpoints:edit.useNamespaceDefault")}
+                    </SelectItem>
+                    <SelectItem value={ToolSearchMethodEnum.Enum.NONE}>
+                      NONE
+                    </SelectItem>
+                    <SelectItem value={ToolSearchMethodEnum.Enum.REGEX}>
+                      REGEX
+                    </SelectItem>
+                    <SelectItem value={ToolSearchMethodEnum.Enum.BM25}>
+                      BM25
+                    </SelectItem>
+                    <SelectItem value={ToolSearchMethodEnum.Enum.EMBEDDINGS}>
+                      EMBEDDINGS
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {t("endpoints:edit.overrideSearchMethodDescription")}
+                </p>
+              </div>
             </div>
           </div>
 

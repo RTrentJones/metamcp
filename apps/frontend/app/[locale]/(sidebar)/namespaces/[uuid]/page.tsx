@@ -25,6 +25,7 @@ import { trpc } from "@/lib/trpc";
 
 import { NamespaceServersTable } from "./components/namespace-servers-table";
 import { NamespaceToolManagement } from "./components/namespace-tool-management";
+import { NamespaceToolSearchConfig } from "./components/namespace-tool-search-config";
 
 interface NamespaceDetailPageProps {
   params: Promise<{
@@ -552,7 +553,15 @@ export default function NamespaceDetailPage({
           </div>
         </div>
 
-        {/* Section 2: MCP Servers Data Table */}
+        {/* Section 2: Tool Search Configuration */}
+        <div className="rounded-lg border p-6">
+          <h3 className="text-lg font-semibold mb-4">
+            {t("namespaces:toolSearchConfig.title")}
+          </h3>
+          <NamespaceToolSearchConfig namespace={namespace} />
+        </div>
+
+        {/* Section 3: MCP Servers Data Table */}
         <div className="rounded-lg border p-6">
           <h3 className="text-lg font-semibold mb-4">
             {t("namespaces:detail.mcpServers")}
@@ -564,7 +573,7 @@ export default function NamespaceDetailPage({
           />
         </div>
 
-        {/* Section 3: Tools Management */}
+        {/* Section 4: Tools Management */}
         <div className="rounded-lg border p-6">
           <h3 className="text-lg font-semibold mb-4">
             {t("namespaces:detail.toolsManagement")}

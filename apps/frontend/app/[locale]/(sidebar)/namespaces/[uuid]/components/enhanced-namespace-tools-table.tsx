@@ -1,6 +1,6 @@
 "use client";
 
-import { NamespaceTool, ToolStatusEnum } from "@repo/zod-types";
+import { NamespaceTool, ToolStatusEnum, DeferLoadingBehaviorEnum } from "@repo/zod-types";
 import {
   Braces,
   Calendar,
@@ -80,6 +80,7 @@ interface EnhancedNamespaceTool {
   status?: string;
   serverName?: string;
   serverUuid?: string;
+  defer_loading?: string;
 
   // Override fields
   overrideName?: string | null;
@@ -173,6 +174,28 @@ export function EnhancedNamespaceToolsTable({
       onError: (error) => {
         console.error("Error updating tool status:", error);
         toast.error(t("namespaces:enhancedToolsTable.toolStatusUpdateFailed"), {
+          description: error.message,
+        });
+      },
+    });
+
+  // Use namespace-specific tool defer_loading update mutation
+  const updateToolDeferLoadingMutation =
+    trpc.frontend.namespaces.updateToolDeferLoading.useMutation({
+      onSuccess: (response) => {
+        if (response.success) {
+          toast.success(t("namespaces:enhancedToolsTable.toolDeferLoadingUpdated"));
+          // Invalidate the namespace tools query to refresh the data
+          utils.frontend.namespaces.getTools.invalidate({ namespaceUuid });
+        } else {
+          toast.error(
+            t("namespaces:enhancedToolsTable.toolDeferLoadingUpdateFailed"),
+          );
+        }
+      },
+      onError: (error) => {
+        console.error("Error updating tool defer_loading:", error);
+        toast.error(t("namespaces:enhancedToolsTable.toolDeferLoadingUpdateFailed"), {
           description: error.message,
         });
       },
@@ -368,6 +391,36 @@ export function EnhancedNamespaceToolsTable({
       toolUuid: tool.uuid,
       serverUuid: tool.serverUuid,
       status: newStatus,
+    });
+  };
+
+  const handleDeferLoadingToggle = async (tool: EnhancedNamespaceTool) => {
+    if (!tool.sources.saved || !tool.uuid || !tool.serverUuid) {
+      toast.error(t("namespaces:enhancedToolsTable.cannotToggleDeferLoading"));
+      return;
+    }
+
+    // Don't allow toggles during session initialization
+    if (sessionInitializing || updateToolDeferLoadingMutation.isPending) {
+      return;
+    }
+
+    // Cycle through: INHERIT -> ENABLED -> DISABLED -> INHERIT
+    let newDeferLoading: string;
+    if (tool.defer_loading === DeferLoadingBehaviorEnum.Enum.ENABLED) {
+      newDeferLoading = DeferLoadingBehaviorEnum.Enum.DISABLED;
+    } else if (tool.defer_loading === DeferLoadingBehaviorEnum.Enum.DISABLED) {
+      newDeferLoading = DeferLoadingBehaviorEnum.Enum.INHERIT;
+    } else {
+      // INHERIT or undefined -> ENABLED
+      newDeferLoading = DeferLoadingBehaviorEnum.Enum.ENABLED;
+    }
+
+    updateToolDeferLoadingMutation.mutate({
+      namespaceUuid,
+      toolUuid: tool.uuid,
+      serverUuid: tool.serverUuid,
+      deferLoading: newDeferLoading,
     });
   };
 
@@ -864,6 +917,9 @@ export function EnhancedNamespaceToolsTable({
                     {renderSortIcon("status")}
                   </Button>
                 </TableHead>
+                <TableHead className="w-[100px]">
+                  {t("namespaces:enhancedToolsTable.deferLoading")}
+                </TableHead>
                 <TableHead className="min-w-[200px] max-w-[300px]">
                   <Button
                     variant="ghost"
@@ -896,7 +952,7 @@ export function EnhancedNamespaceToolsTable({
                 const isExpanded = expandedRows.has(toolId);
                 const parameters = getToolParameters(tool);
                 const isToggling =
-                  sessionInitializing || updateToolStatusMutation.isPending;
+                  sessionInitializing || updateToolStatusMutation.isPending || updateToolDeferLoadingMutation.isPending;
                 const hasNameOverride = Boolean(tool.overrideName);
                 const hasTitleOverride =
                   tool.overrideTitle !== null &&
@@ -1030,6 +1086,44 @@ export function EnhancedNamespaceToolsTable({
                               disabled={isToggling}
                             />
                           </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">
+                            -
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="w-[100px]">
+                        {tool.sources.saved ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant={
+                                  tool.defer_loading === DeferLoadingBehaviorEnum.Enum.ENABLED
+                                    ? "default"
+                                    : tool.defer_loading === DeferLoadingBehaviorEnum.Enum.DISABLED
+                                      ? "secondary"
+                                      : "outline"
+                                }
+                                className="cursor-pointer hover:opacity-80"
+                                onClick={() => handleDeferLoadingToggle(tool)}
+                              >
+                                {tool.defer_loading === DeferLoadingBehaviorEnum.Enum.ENABLED
+                                  ? "ON"
+                                  : tool.defer_loading === DeferLoadingBehaviorEnum.Enum.DISABLED
+                                    ? "OFF"
+                                    : "AUTO"}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">
+                                {tool.defer_loading === DeferLoadingBehaviorEnum.Enum.ENABLED
+                                  ? t("namespaces:enhancedToolsTable.deferLoadingEnabledTooltip")
+                                  : tool.defer_loading === DeferLoadingBehaviorEnum.Enum.DISABLED
+                                    ? t("namespaces:enhancedToolsTable.deferLoadingDisabledTooltip")
+                                    : t("namespaces:enhancedToolsTable.deferLoadingInheritTooltip")}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
                         ) : (
                           <span className="text-xs text-muted-foreground italic">
                             -
