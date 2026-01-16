@@ -1,14 +1,17 @@
 import { OAuthClientInformation } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
 import {
+  DeferLoadingBehaviorEnum,
   McpServerErrorStatusEnum,
   McpServerStatusEnum,
   McpServerTypeEnum,
+  ToolSearchMethodEnum,
 } from "@repo/zod-types";
 import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
@@ -29,6 +32,14 @@ export const mcpServerStatusEnum = pgEnum(
 export const mcpServerErrorStatusEnum = pgEnum(
   "mcp_server_error_status",
   McpServerErrorStatusEnum.options,
+);
+export const toolSearchMethodEnum = pgEnum(
+  "tool_search_method",
+  ToolSearchMethodEnum.options,
+);
+export const deferLoadingBehaviorEnum = pgEnum(
+  "defer_loading_behavior",
+  DeferLoadingBehaviorEnum.options,
 );
 
 export const mcpServersTable = pgTable(
@@ -228,6 +239,13 @@ export const namespacesTable = pgTable(
     user_id: text("user_id").references(() => usersTable.id, {
       onDelete: "cascade",
     }),
+    // Tool search configuration fields
+    default_defer_loading: boolean("default_defer_loading")
+      .notNull()
+      .default(false),
+    default_search_method: toolSearchMethodEnum("default_search_method")
+      .notNull()
+      .default(ToolSearchMethodEnum.Enum.NONE),
   },
   (table) => [
     index("namespaces_user_id_idx").on(table.user_id),
@@ -263,6 +281,10 @@ export const endpointsTable = pgTable(
     user_id: text("user_id").references(() => usersTable.id, {
       onDelete: "cascade",
     }),
+    // Tool search override fields
+    override_defer_loading: deferLoadingBehaviorEnum("override_defer_loading")
+      .default(DeferLoadingBehaviorEnum.Enum.INHERIT),
+    override_search_method: toolSearchMethodEnum("override_search_method"),
   },
   (table) => [
     index("endpoints_namespace_uuid_idx").on(table.namespace_uuid),
@@ -331,6 +353,10 @@ export const namespaceToolMappingsTable = pgTable(
     override_annotations: jsonb("override_annotations")
       .$type<Record<string, unknown> | null>()
       .default(sql`NULL`),
+    // Tool search defer loading override
+    defer_loading: deferLoadingBehaviorEnum("defer_loading")
+      .notNull()
+      .default(DeferLoadingBehaviorEnum.Enum.INHERIT),
     created_at: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -471,5 +497,40 @@ export const oauthAccessTokensTable = pgTable(
     index("oauth_access_tokens_client_id_idx").on(table.client_id),
     index("oauth_access_tokens_user_id_idx").on(table.user_id),
     index("oauth_access_tokens_expires_at_idx").on(table.expires_at),
+  ],
+);
+
+// Tool Search Configuration table
+export const toolSearchConfigTable = pgTable(
+  "tool_search_config",
+  {
+    uuid: uuid("uuid").primaryKey().defaultRandom(),
+    namespace_uuid: uuid("namespace_uuid")
+      .notNull()
+      .references(() => namespacesTable.uuid, { onDelete: "cascade" }),
+    search_method: toolSearchMethodEnum("search_method")
+      .notNull()
+      .default(ToolSearchMethodEnum.Enum.REGEX),
+    regex_pattern: text("regex_pattern"),
+    bm25_config: jsonb("bm25_config").$type<{
+      k1?: number;
+      b?: number;
+      fields?: string[];
+    }>(),
+    embeddings_config: jsonb("embeddings_config").$type<{
+      model?: string;
+      similarity_threshold?: number;
+    }>(),
+    max_results: integer("max_results").notNull().default(5),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("tool_search_config_namespace_uuid_idx").on(table.namespace_uuid),
+    unique("tool_search_config_namespace_unique").on(table.namespace_uuid),
   ],
 );
