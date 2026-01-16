@@ -48,6 +48,7 @@ import {
   createToolOverridesListToolsMiddleware,
   mapOverrideNameToOriginal,
 } from "./metamcp-middleware/tool-overrides.functional";
+import { createDeferLoadingMiddleware } from "./metamcp-middleware/defer-loading.functional";
 import { parseToolName } from "./tool-name-parser";
 import { sanitizeName } from "./utils";
 
@@ -483,6 +484,9 @@ export const createServer = async (
 
   // Compose middleware with handlers - this is the Express-like functional approach
   const listToolsWithMiddleware = compose(
+    createDeferLoadingMiddleware({
+      enabled: true, // TODO: Make configurable via app settings
+    }),
     createToolOverridesListToolsMiddleware({
       cacheEnabled: true,
       persistentCacheOnListTools: true,

@@ -9,6 +9,7 @@ import {
 export interface MetaMCPHandlerContext {
   namespaceUuid: string;
   sessionId: string;
+  endpointUuid?: string; // Optional: endpoint UUID for defer-loading config resolution
 }
 
 // Handler function types
