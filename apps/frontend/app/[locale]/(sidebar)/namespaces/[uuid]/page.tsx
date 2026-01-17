@@ -558,7 +558,13 @@ export default function NamespaceDetailPage({
           <h3 className="text-lg font-semibold mb-4">
             {t("namespaces:toolSearchConfig.title")}
           </h3>
-          <NamespaceToolSearchConfig namespace={namespace} />
+          {namespace ? (
+            <NamespaceToolSearchConfig namespace={namespace} />
+          ) : (
+            <div className="text-muted-foreground">
+              {t("common:loading")}...
+            </div>
+          )}
         </div>
 
         {/* Section 3: MCP Servers Data Table */}

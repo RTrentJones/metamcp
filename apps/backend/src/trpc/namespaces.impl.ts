@@ -89,6 +89,8 @@ export const namespacesImplementations = {
         description: input.description,
         mcpServerUuids: input.mcpServerUuids,
         user_id: effectiveUserId,
+        default_defer_loading: input.default_defer_loading,
+        default_search_method: input.default_search_method,
       });
 
       // Ensure idle MetaMCP server exists for the new namespace to improve performance
@@ -385,6 +387,8 @@ export const namespacesImplementations = {
         description: input.description,
         user_id: input.user_id,
         mcpServerUuids: input.mcpServerUuids,
+        default_defer_loading: input.default_defer_loading,
+        default_search_method: input.default_search_method,
       });
 
       // Invalidate idle MetaMCP server for this namespace since the MCP servers list may have changed
