@@ -6,6 +6,7 @@ import {
   McpServerStatusEnum,
   McpServerTypeEnum,
   ToolSearchMethodEnum,
+  ToolVisibilityModeEnum,
 } from "@repo/zod-types";
 import { sql } from "drizzle-orm";
 import {
@@ -40,6 +41,10 @@ export const toolSearchMethodEnum = pgEnum(
 export const deferLoadingBehaviorEnum = pgEnum(
   "defer_loading_behavior",
   DeferLoadingBehaviorEnum.options,
+);
+export const toolVisibilityModeEnum = pgEnum(
+  "tool_visibility_mode",
+  ToolVisibilityModeEnum.options,
 );
 
 export const mcpServersTable = pgTable(
@@ -246,6 +251,10 @@ export const namespacesTable = pgTable(
     default_search_method: toolSearchMethodEnum("default_search_method")
       .notNull()
       .default(ToolSearchMethodEnum.Enum.NONE),
+    // Tool visibility mode: ALL = return all tools, SEARCH_ONLY = only search tool
+    default_tool_visibility: toolVisibilityModeEnum("default_tool_visibility")
+      .notNull()
+      .default(ToolVisibilityModeEnum.Enum.ALL),
   },
   (table) => [
     index("namespaces_user_id_idx").on(table.user_id),
@@ -285,6 +294,8 @@ export const endpointsTable = pgTable(
     override_defer_loading: deferLoadingBehaviorEnum("override_defer_loading")
       .default(DeferLoadingBehaviorEnum.Enum.INHERIT),
     override_search_method: toolSearchMethodEnum("override_search_method"),
+    // Tool visibility override: null = inherit from namespace
+    override_tool_visibility: toolVisibilityModeEnum("override_tool_visibility"),
   },
   (table) => [
     index("endpoints_namespace_uuid_idx").on(table.namespace_uuid),

@@ -15,6 +15,14 @@ export const DeferLoadingBehaviorEnum = z.enum([
   "INHERIT",
 ]);
 
+// Tool visibility mode enum - controls how tools are returned to clients
+// ALL: Return all tools (with defer_loading flag if enabled)
+// SEARCH_ONLY: Only return the search tool, all other tools must be discovered via search
+export const ToolVisibilityModeEnum = z.enum([
+  "ALL",
+  "SEARCH_ONLY",
+]);
+
 // BM25 configuration schema
 export const BM25ConfigSchema = z.object({
   k1: z.number().min(0).max(3).optional(),
@@ -31,6 +39,7 @@ export const EmbeddingsConfigSchema = z.object({
 // Type exports
 export type ToolSearchMethod = z.infer<typeof ToolSearchMethodEnum>;
 export type DeferLoadingBehavior = z.infer<typeof DeferLoadingBehaviorEnum>;
+export type ToolVisibilityMode = z.infer<typeof ToolVisibilityModeEnum>;
 export type BM25Config = z.infer<typeof BM25ConfigSchema>;
 export type EmbeddingsConfig = z.infer<typeof EmbeddingsConfigSchema>;
 

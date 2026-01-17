@@ -66,6 +66,7 @@ describe("DeferLoadingMiddleware - Configuration Resolution", () => {
         deferLoadingEnabled: true,
         searchMethod: "BM25",
         toolOverrides: {},
+        toolVisibility: "ALL",
       });
     });
 
@@ -85,6 +86,7 @@ describe("DeferLoadingMiddleware - Configuration Resolution", () => {
         deferLoadingEnabled: true,
         searchMethod: "REGEX",
         toolOverrides: {},
+        toolVisibility: "ALL",
       });
     });
 

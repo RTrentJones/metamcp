@@ -29,11 +29,19 @@ export type SearchMethod = "NONE" | "REGEX" | "BM25" | "EMBEDDINGS";
 export type DeferLoadingBehavior = "INHERIT" | "ENABLED" | "DISABLED";
 
 /**
+ * Tool visibility mode enum
+ * ALL: Return all tools (with defer_loading flag if enabled)
+ * SEARCH_ONLY: Only return the search tool, all other tools must be discovered via search
+ */
+export type ToolVisibilityMode = "ALL" | "SEARCH_ONLY";
+
+/**
  * Namespace configuration for defer loading
  */
 export interface NamespaceConfig {
   default_defer_loading: boolean;
   default_search_method: SearchMethod;
+  default_tool_visibility?: ToolVisibilityMode;
 }
 
 /**
@@ -42,6 +50,7 @@ export interface NamespaceConfig {
 export interface EndpointConfig {
   override_defer_loading: DeferLoadingBehavior;
   override_search_method: SearchMethod | "INHERIT";
+  override_tool_visibility?: ToolVisibilityMode | null;
 }
 
 /**
@@ -57,6 +66,7 @@ export interface ResolvedDeferLoadingConfig {
   deferLoadingEnabled: boolean;
   searchMethod: SearchMethod;
   toolOverrides: ToolOverrides;
+  toolVisibility: ToolVisibilityMode;
 }
 
 /**
@@ -66,6 +76,7 @@ export interface DeferLoadingConfig {
   deferLoadingEnabled: boolean;
   searchMethod: SearchMethod;
   toolOverrides: ToolOverrides;
+  toolVisibility: ToolVisibilityMode;
 }
 
 /**
@@ -101,10 +112,23 @@ export function resolveDeferLoadingConfig(
     searchMethod = endpoint.override_search_method;
   }
 
+  // Resolve tool_visibility
+  // Default to ALL if not specified
+  let toolVisibility: ToolVisibilityMode =
+    namespace.default_tool_visibility ?? "ALL";
+  // Endpoint can override (null means inherit from namespace)
+  if (
+    endpoint.override_tool_visibility !== null &&
+    endpoint.override_tool_visibility !== undefined
+  ) {
+    toolVisibility = endpoint.override_tool_visibility;
+  }
+
   return {
     deferLoadingEnabled,
     searchMethod,
     toolOverrides,
+    toolVisibility,
   };
 }
 
@@ -195,15 +219,18 @@ export class DeferLoadingMiddleware {
         {
           default_defer_loading: namespace.default_defer_loading,
           default_search_method: namespace.default_search_method,
+          default_tool_visibility: namespace.default_tool_visibility,
         },
         endpoint
           ? {
               override_defer_loading: endpoint.override_defer_loading,
               override_search_method: endpoint.override_search_method,
+              override_tool_visibility: endpoint.override_tool_visibility,
             }
           : {
               override_defer_loading: "INHERIT",
               override_search_method: "INHERIT",
+              override_tool_visibility: null,
             },
         toolOverrides
       );
@@ -260,6 +287,32 @@ export class DeferLoadingMiddleware {
   }
 
   /**
+   * Apply tool visibility filter based on configuration
+   *
+   * When toolVisibility is SEARCH_ONLY:
+   * - Only return the search tool
+   * - All other tools are filtered out (must be discovered via search)
+   *
+   * When toolVisibility is ALL:
+   * - Return all tools (no filtering)
+   *
+   * @param tools - Tool list (after defer_loading applied)
+   * @param config - Resolved configuration
+   * @returns Filtered tool list
+   */
+  applyToolVisibilityFilter(
+    tools: Tool[],
+    config: ResolvedDeferLoadingConfig
+  ): Tool[] {
+    if (config.toolVisibility === "SEARCH_ONLY") {
+      // Only return the search tool
+      return tools.filter((tool) => tool.name === TOOL_SEARCH_TOOL_NAME);
+    }
+    // ALL mode: return all tools
+    return tools;
+  }
+
+  /**
    * Process tools through defer loading middleware
    *
    * @param tools - Original tool list
@@ -311,7 +364,7 @@ export class DeferLoadingMiddleware {
   }
 
   /**
-   * Get fail-safe configuration (defer loading disabled)
+   * Get fail-safe configuration (defer loading disabled, all tools visible)
    *
    * @returns Safe default configuration
    */
@@ -320,6 +373,7 @@ export class DeferLoadingMiddleware {
       deferLoadingEnabled: false,
       searchMethod: "NONE",
       toolOverrides: {},
+      toolVisibility: "ALL",
     };
   }
 }

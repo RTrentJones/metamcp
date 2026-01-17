@@ -1092,3 +1092,295 @@ describe("E2E Test 6: Server-Side Middleware Processing (Part 2)", () => {
     });
   });
 });
+
+// =============================================================================
+// Test 7: Tool Visibility Mode - SEARCH_ONLY (Part 2 - Strict Filtering)
+// =============================================================================
+
+describe("E2E Test 7: Tool Visibility Mode - SEARCH_ONLY (Part 2 - Strict Filtering)", () => {
+  /**
+   * Part 2 (strict filtering) verifies that when toolVisibility is SEARCH_ONLY:
+   * - The server ONLY returns the search tool
+   * - All other tools are filtered out from the tools/list response
+   * - Tools can only be discovered via the search tool
+   *
+   * This is distinct from the defer_loading flag which:
+   * - Returns ALL tools but marks them with defer_loading: true
+   * - Relies on client support for the defer_loading flag
+   *
+   * SEARCH_ONLY mode is for clients that don't support defer_loading
+   * or when you want maximum context window savings.
+   */
+
+  let middleware: DeferLoadingMiddleware;
+  let sampleTools: Tool[];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    middleware = new DeferLoadingMiddleware();
+    sampleTools = createSampleTools();
+  });
+
+  describe("Scenario: SEARCH_ONLY mode filters out all tools except search tool", () => {
+    it("should only return search tool when toolVisibility is SEARCH_ONLY", () => {
+      // Add search tool to the list
+      const toolsWithSearch = [...sampleTools, TOOL_SEARCH_TOOL_DEFINITION];
+
+      const config: ResolvedDeferLoadingConfig = {
+        deferLoadingEnabled: true,
+        searchMethod: "BM25",
+        toolOverrides: {},
+        toolVisibility: "SEARCH_ONLY",
+      };
+
+      // Apply tool visibility filter
+      const filteredTools = middleware.applyToolVisibilityFilter(
+        toolsWithSearch,
+        config
+      );
+
+      // Only search tool should remain
+      expect(filteredTools.length).toBe(1);
+      expect(filteredTools[0].name).toBe(TOOL_SEARCH_TOOL_NAME);
+    });
+
+    it("should return empty array if search tool is not in list with SEARCH_ONLY", () => {
+      // List without search tool
+      const config: ResolvedDeferLoadingConfig = {
+        deferLoadingEnabled: true,
+        searchMethod: "BM25",
+        toolOverrides: {},
+        toolVisibility: "SEARCH_ONLY",
+      };
+
+      const filteredTools = middleware.applyToolVisibilityFilter(
+        sampleTools,
+        config
+      );
+
+      // No tools should remain
+      expect(filteredTools.length).toBe(0);
+    });
+
+    it("should return all tools when toolVisibility is ALL", () => {
+      const toolsWithSearch = [...sampleTools, TOOL_SEARCH_TOOL_DEFINITION];
+
+      const config: ResolvedDeferLoadingConfig = {
+        deferLoadingEnabled: true,
+        searchMethod: "BM25",
+        toolOverrides: {},
+        toolVisibility: "ALL",
+      };
+
+      const filteredTools = middleware.applyToolVisibilityFilter(
+        toolsWithSearch,
+        config
+      );
+
+      // All tools should remain
+      expect(filteredTools.length).toBe(sampleTools.length + 1);
+    });
+  });
+
+  describe("Scenario: Configuration resolution includes toolVisibility", () => {
+    it("should resolve toolVisibility from namespace defaults", () => {
+      const namespace: NamespaceConfig = {
+        default_defer_loading: true,
+        default_search_method: "BM25",
+        default_tool_visibility: "SEARCH_ONLY",
+      };
+      const endpoint: EndpointConfig = {
+        override_defer_loading: "INHERIT",
+        override_search_method: "INHERIT",
+        override_tool_visibility: null, // Inherit from namespace
+      };
+
+      const resolved = resolveDeferLoadingConfig(namespace, endpoint, {});
+
+      expect(resolved.toolVisibility).toBe("SEARCH_ONLY");
+    });
+
+    it("should override namespace toolVisibility with endpoint setting", () => {
+      const namespace: NamespaceConfig = {
+        default_defer_loading: true,
+        default_search_method: "BM25",
+        default_tool_visibility: "ALL", // Namespace says ALL
+      };
+      const endpoint: EndpointConfig = {
+        override_defer_loading: "INHERIT",
+        override_search_method: "INHERIT",
+        override_tool_visibility: "SEARCH_ONLY", // Endpoint overrides to SEARCH_ONLY
+      };
+
+      const resolved = resolveDeferLoadingConfig(namespace, endpoint, {});
+
+      expect(resolved.toolVisibility).toBe("SEARCH_ONLY");
+    });
+
+    it("should default to ALL when toolVisibility is not specified", () => {
+      const namespace: NamespaceConfig = {
+        default_defer_loading: true,
+        default_search_method: "BM25",
+        // No default_tool_visibility specified
+      };
+      const endpoint: EndpointConfig = {
+        override_defer_loading: "INHERIT",
+        override_search_method: "INHERIT",
+        // No override_tool_visibility specified
+      };
+
+      const resolved = resolveDeferLoadingConfig(namespace, endpoint, {});
+
+      expect(resolved.toolVisibility).toBe("ALL");
+    });
+  });
+
+  describe("Scenario: Full workflow with SEARCH_ONLY mode", () => {
+    it("should complete workflow: filtered list -> search -> discover -> invoke", async () => {
+      // Step 1: Client connects and requests tool list
+      const allTools = createSampleTools();
+      const toolsWithSearch = [...allTools, TOOL_SEARCH_TOOL_DEFINITION];
+
+      // Step 2: Server applies defer_loading middleware
+      const config: ResolvedDeferLoadingConfig = {
+        deferLoadingEnabled: true,
+        searchMethod: "BM25",
+        toolOverrides: {},
+        toolVisibility: "SEARCH_ONLY",
+      };
+      const processedTools = await middleware.applyDeferLoading(
+        toolsWithSearch,
+        config
+      );
+
+      // Step 3: Server applies tool visibility filter (SEARCH_ONLY)
+      const filteredTools = middleware.applyToolVisibilityFilter(
+        processedTools,
+        config
+      );
+
+      // Client only sees the search tool
+      expect(filteredTools.length).toBe(1);
+      expect(filteredTools[0].name).toBe(TOOL_SEARCH_TOOL_NAME);
+
+      // Step 4: Model invokes search tool to discover what's available
+      const toolsForSearch = allTools.map((tool, index) => ({
+        tool,
+        serverUuid: `server-uuid-${Math.floor(index / 3)}`,
+      }));
+
+      const searchResult = await executeToolSearch(
+        { query: "file" },
+        toolsForSearch,
+        { searchMethod: "BM25", maxResults: 5 }
+      );
+
+      // Model discovers file-related tools
+      expect(searchResult.content.length).toBeGreaterThan(0);
+      const hasFileTools = searchResult.content.some(
+        (ref) =>
+          ref.name.includes("read_file") || ref.name.includes("write_file")
+      );
+      expect(hasFileTools).toBe(true);
+
+      // Step 5: Model can invoke discovered tools by name
+      // (Even though they weren't in the initial tools/list response)
+      const discoveredToolName = searchResult.content[0].name;
+      const toolExists = allTools.some((t) => t.name === discoveredToolName);
+      expect(toolExists).toBe(true);
+    });
+
+    it("should allow maximum context savings with SEARCH_ONLY mode", async () => {
+      // This test demonstrates the context window savings
+      const allTools = createSampleTools();
+      const toolsWithSearch = [...allTools, TOOL_SEARCH_TOOL_DEFINITION];
+
+      // Without SEARCH_ONLY (ALL mode)
+      const allModeConfig: ResolvedDeferLoadingConfig = {
+        deferLoadingEnabled: true,
+        searchMethod: "BM25",
+        toolOverrides: {},
+        toolVisibility: "ALL",
+      };
+      const allModeTools = middleware.applyToolVisibilityFilter(
+        toolsWithSearch,
+        allModeConfig
+      );
+
+      // With SEARCH_ONLY mode
+      const searchOnlyConfig: ResolvedDeferLoadingConfig = {
+        deferLoadingEnabled: true,
+        searchMethod: "BM25",
+        toolOverrides: {},
+        toolVisibility: "SEARCH_ONLY",
+      };
+      const searchOnlyTools = middleware.applyToolVisibilityFilter(
+        toolsWithSearch,
+        searchOnlyConfig
+      );
+
+      // Dramatic reduction in tools returned
+      expect(allModeTools.length).toBe(11); // 10 sample tools + 1 search tool
+      expect(searchOnlyTools.length).toBe(1); // Only search tool
+
+      // Context window savings: from 11 tools to 1 tool
+      const contextSavingsPercent =
+        ((allModeTools.length - searchOnlyTools.length) / allModeTools.length) *
+        100;
+      expect(contextSavingsPercent).toBeGreaterThan(90); // Over 90% reduction
+    });
+  });
+
+  describe("Scenario: Comparison of Part 1 (defer_loading) vs Part 2 (SEARCH_ONLY)", () => {
+    it("should demonstrate the difference between defer_loading and SEARCH_ONLY", async () => {
+      const allTools = createSampleTools();
+      const toolsWithSearch = [...allTools, TOOL_SEARCH_TOOL_DEFINITION];
+
+      // Part 1: defer_loading flag only (ALL visibility)
+      const part1Config: ResolvedDeferLoadingConfig = {
+        deferLoadingEnabled: true,
+        searchMethod: "BM25",
+        toolOverrides: {},
+        toolVisibility: "ALL",
+      };
+      const part1Tools = await middleware.applyDeferLoading(
+        toolsWithSearch,
+        part1Config
+      );
+      const part1Filtered = middleware.applyToolVisibilityFilter(
+        part1Tools,
+        part1Config
+      );
+
+      // Part 2: SEARCH_ONLY mode
+      const part2Config: ResolvedDeferLoadingConfig = {
+        deferLoadingEnabled: true,
+        searchMethod: "BM25",
+        toolOverrides: {},
+        toolVisibility: "SEARCH_ONLY",
+      };
+      const part2Tools = await middleware.applyDeferLoading(
+        toolsWithSearch,
+        part2Config
+      );
+      const part2Filtered = middleware.applyToolVisibilityFilter(
+        part2Tools,
+        part2Config
+      );
+
+      // Part 1: Client sees ALL tools (with defer_loading flag)
+      expect(part1Filtered.length).toBe(11);
+      const part1DeferredTools = part1Filtered.filter(
+        (t) => t.defer_loading === true
+      );
+      expect(part1DeferredTools.length).toBe(10); // All except search tool
+
+      // Part 2: Client sees ONLY search tool
+      expect(part2Filtered.length).toBe(1);
+      expect(part2Filtered[0].name).toBe(TOOL_SEARCH_TOOL_NAME);
+
+      // Both approaches allow tool discovery via search
+      // But Part 2 provides maximum context savings for non-supporting clients
+    });
+  });
+});
