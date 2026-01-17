@@ -91,6 +91,8 @@ export function EditNamespace({
           description: "",
           mcpServerUuids: [],
           user_id: undefined,
+          default_defer_loading: false,
+          default_search_method: "NONE",
         });
       } else {
         toast.error(t("namespaces:edit.updateFailed"), {
@@ -117,6 +119,8 @@ export function EditNamespace({
       description: "",
       mcpServerUuids: [],
       user_id: undefined,
+      default_defer_loading: false,
+      default_search_method: "NONE",
     },
   });
 
@@ -131,6 +135,8 @@ export function EditNamespace({
         description: namespace.description || "",
         mcpServerUuids: serverUuids,
         user_id: namespace.user_id,
+        default_defer_loading: namespace.default_defer_loading ?? false,
+        default_search_method: namespace.default_search_method ?? "NONE",
       });
       setSelectedServerUuids(serverUuids);
     }
@@ -185,6 +191,8 @@ export function EditNamespace({
       description: "",
       mcpServerUuids: [],
       user_id: undefined,
+      default_defer_loading: false,
+      default_search_method: "NONE",
     });
     setSelectedServerUuids([]);
   };

@@ -16,8 +16,8 @@ export class NamespacesSerializer {
       created_at: dbNamespace.created_at.toISOString(),
       updated_at: dbNamespace.updated_at.toISOString(),
       user_id: dbNamespace.user_id,
-      default_defer_loading: dbNamespace.default_defer_loading,
-      default_search_method: dbNamespace.default_search_method,
+      default_defer_loading: dbNamespace.default_defer_loading ?? false,
+      default_search_method: dbNamespace.default_search_method ?? "NONE",
     };
   }
 
@@ -37,8 +37,8 @@ export class NamespacesSerializer {
       created_at: dbNamespace.created_at.toISOString(),
       updated_at: dbNamespace.updated_at.toISOString(),
       user_id: dbNamespace.user_id,
-      default_defer_loading: dbNamespace.default_defer_loading,
-      default_search_method: dbNamespace.default_search_method,
+      default_defer_loading: dbNamespace.default_defer_loading ?? false,
+      default_search_method: dbNamespace.default_search_method ?? "NONE",
       servers: dbNamespace.servers.map((server) => ({
         uuid: server.uuid,
         name: server.name,

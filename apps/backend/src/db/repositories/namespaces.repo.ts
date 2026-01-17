@@ -80,6 +80,8 @@ export class NamespacesRepository {
         created_at: namespacesTable.created_at,
         updated_at: namespacesTable.updated_at,
         user_id: namespacesTable.user_id,
+        default_defer_loading: namespacesTable.default_defer_loading,
+        default_search_method: namespacesTable.default_search_method,
       })
       .from(namespacesTable)
       .orderBy(desc(namespacesTable.created_at));
@@ -95,6 +97,8 @@ export class NamespacesRepository {
         created_at: namespacesTable.created_at,
         updated_at: namespacesTable.updated_at,
         user_id: namespacesTable.user_id,
+        default_defer_loading: namespacesTable.default_defer_loading,
+        default_search_method: namespacesTable.default_search_method,
       })
       .from(namespacesTable)
       .where(
@@ -116,6 +120,8 @@ export class NamespacesRepository {
         created_at: namespacesTable.created_at,
         updated_at: namespacesTable.updated_at,
         user_id: namespacesTable.user_id,
+        default_defer_loading: namespacesTable.default_defer_loading,
+        default_search_method: namespacesTable.default_search_method,
       })
       .from(namespacesTable)
       .where(isNull(namespacesTable.user_id))
@@ -132,6 +138,8 @@ export class NamespacesRepository {
         created_at: namespacesTable.created_at,
         updated_at: namespacesTable.updated_at,
         user_id: namespacesTable.user_id,
+        default_defer_loading: namespacesTable.default_defer_loading,
+        default_search_method: namespacesTable.default_search_method,
       })
       .from(namespacesTable)
       .where(eq(namespacesTable.user_id, userId))

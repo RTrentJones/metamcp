@@ -75,6 +75,8 @@ export default function NamespacesPage() {
           name: "",
           description: "",
           user_id: undefined, // Default to "For myself" (Private)
+          default_defer_loading: false,
+          default_search_method: "NONE",
         });
         setSelectedServerUuids([]);
         setServerSearchQuery("");
@@ -103,6 +105,8 @@ export default function NamespacesPage() {
       description: "",
       mcpServerUuids: [],
       user_id: undefined, // Default to "For myself" (Private)
+      default_defer_loading: false,
+      default_search_method: "NONE",
     },
   });
 
@@ -309,6 +313,8 @@ export default function NamespacesPage() {
                         name: "",
                         description: "",
                         user_id: undefined, // Default to "For myself" (Private)
+                        default_defer_loading: false,
+                        default_search_method: "NONE",
                       });
                       setSelectedServerUuids([]);
                       setServerSearchQuery("");
