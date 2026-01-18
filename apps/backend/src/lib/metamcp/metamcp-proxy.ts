@@ -30,10 +30,14 @@ import {
 import {
   TOOL_SEARCH_TOOL_NAME,
   TOOL_SEARCH_TOOL_DEFINITION,
+  TOOL_EXECUTE_TOOL_NAME,
+  TOOL_EXECUTE_TOOL_DEFINITION,
   executeToolSearch,
+  executeToolExecution,
   shouldIncludeSearchTool,
   isToolSearchArguments,
-} from "./builtin-tools/tool-search-tool";
+  isToolExecuteArguments,
+} from "./builtin-tools/index.js";
 import { ConnectedClient } from "./client";
 import { getMcpServers } from "./fetch-metamcp";
 import { mcpServerPool } from "./mcp-server-pool";
@@ -304,13 +308,14 @@ export const createServer = async (
       }),
     );
 
-    // Add metamcp_search_tools if defer_loading is enabled
+    // Add builtin tools if defer_loading is enabled
     const namespaceConfig = await namespacesRepository.findByUuid(context.namespaceUuid);
     if (namespaceConfig && shouldIncludeSearchTool({
       default_defer_loading: namespaceConfig.default_defer_loading ?? false,
       default_search_method: namespaceConfig.default_search_method ?? "NONE"
     })) {
       allTools.push(TOOL_SEARCH_TOOL_DEFINITION);
+      allTools.push(TOOL_EXECUTE_TOOL_DEFINITION);
     }
 
     const totalTime = performance.now() - startTime;
@@ -374,6 +379,85 @@ export const createServer = async (
       // Return as any because tool_reference is an Anthropic extension to MCP
       // The MCP SDK doesn't know about tool_reference content type, but will pass it through
       return result as any;
+    }
+
+    // Check if this is a call to the built-in execute tool
+    if (name === TOOL_EXECUTE_TOOL_NAME) {
+      // Validate and narrow args type using type guard
+      if (!isToolExecuteArguments(args)) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Tool execution requires 'tool_name' (string) and 'arguments' (object) parameters",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Prevent circular execution
+      if (
+        args.tool_name === TOOL_EXECUTE_TOOL_NAME ||
+        args.tool_name === TOOL_SEARCH_TOOL_NAME
+      ) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: Cannot execute builtin tool "${args.tool_name}" via metamcp_execute_tool`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Get available tools (same pattern as search tool)
+      const toolsResult = await originalListToolsHandler(
+        { method: "tools/list" },
+        context
+      );
+
+      // Map tools to include serverUuid
+      const availableTools = toolsResult.tools
+        .filter(
+          (tool) =>
+            tool.name !== TOOL_SEARCH_TOOL_NAME &&
+            tool.name !== TOOL_EXECUTE_TOOL_NAME
+        )
+        .map((tool) => ({
+          tool,
+          serverUuid: toolToServerUuid[tool.name] || "",
+        }))
+        .filter((item) => item.serverUuid);
+
+      // Create proxy function that respects middleware
+      const proxyFunction = async (
+        toolName: string,
+        toolArgs: unknown
+      ): Promise<CallToolResult> => {
+        return await originalCallToolHandler(
+          {
+            method: "tools/call",
+            params: {
+              name: toolName,
+              arguments: toolArgs,
+              _meta: request.params._meta,
+            },
+          },
+          context
+        );
+      };
+
+      // Execute with validation
+      const result = await executeToolExecution(
+        args,
+        availableTools,
+        proxyFunction,
+        { namespaceUuid: context.namespaceUuid, sessionId: context.sessionId }
+      );
+
+      return result;
     }
 
     // Parse the tool name using shared utility

@@ -16,7 +16,10 @@ import {
   endpointsRepository,
   namespaceMappingsRepository,
 } from "../../../db/repositories/index.js";
-import { TOOL_SEARCH_TOOL_NAME } from "../builtin-tools/tool-search-tool.js";
+import {
+  TOOL_SEARCH_TOOL_NAME,
+  TOOL_EXECUTE_TOOL_NAME,
+} from "../builtin-tools/index.js";
 
 /**
  * Search method enum
@@ -260,8 +263,11 @@ export class DeferLoadingMiddleware {
     config: ResolvedDeferLoadingConfig
   ): Promise<Tool[]> {
     return tools.map((tool) => {
-      // NEVER apply defer_loading to the search tool itself
-      if (tool.name === TOOL_SEARCH_TOOL_NAME) {
+      // NEVER apply defer_loading to builtin tools
+      if (
+        tool.name === TOOL_SEARCH_TOOL_NAME ||
+        tool.name === TOOL_EXECUTE_TOOL_NAME
+      ) {
         return tool;
       }
 
@@ -305,8 +311,12 @@ export class DeferLoadingMiddleware {
     config: ResolvedDeferLoadingConfig
   ): Tool[] {
     if (config.toolVisibility === "SEARCH_ONLY") {
-      // Only return the search tool
-      return tools.filter((tool) => tool.name === TOOL_SEARCH_TOOL_NAME);
+      // Only return builtin tools
+      return tools.filter(
+        (tool) =>
+          tool.name === TOOL_SEARCH_TOOL_NAME ||
+          tool.name === TOOL_EXECUTE_TOOL_NAME
+      );
     }
     // ALL mode: return all tools
     return tools;

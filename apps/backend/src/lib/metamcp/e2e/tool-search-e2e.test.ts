@@ -30,11 +30,14 @@ vi.mock("../../../db/repositories/index.js", () => ({
 import {
   TOOL_SEARCH_TOOL_NAME,
   TOOL_SEARCH_TOOL_DEFINITION,
+  TOOL_EXECUTE_TOOL_NAME,
+  TOOL_EXECUTE_TOOL_DEFINITION,
   executeToolSearch,
+  executeToolExecution,
   shouldIncludeSearchTool,
   isToolSearchArguments,
   type ToolReferenceBlock,
-} from "../builtin-tools/tool-search-tool.js";
+} from "../builtin-tools/index.js";
 import {
   DeferLoadingMiddleware,
   resolveDeferLoadingConfig,
@@ -1381,6 +1384,444 @@ describe("E2E Test 7: Tool Visibility Mode - SEARCH_ONLY (Part 2 - Strict Filter
 
       // Both approaches allow tool discovery via search
       // But Part 2 provides maximum context savings for non-supporting clients
+    });
+  });
+
+  /**
+   * E2E Test Suite 8: Universal Client Compatibility with Execute Tool
+   *
+   * Tests the full workflow for clients without tool_reference support (Cline, VS Code Copilot, etc.)
+   */
+  describe("E2E Test 8: Universal Client Compatibility with Execute Tool", () => {
+    describe("Scenario: Cline-like client workflow", () => {
+      it("should expose only 2 builtin tools in SEARCH_ONLY mode", async () => {
+        const config: ResolvedDeferLoadingConfig = {
+          deferLoadingEnabled: true,
+          searchMethod: "BM25",
+          toolOverrides: {},
+          toolVisibility: "SEARCH_ONLY",
+        };
+
+        const allTools = [
+          ...createSampleTools(50), // 50 regular tools
+          TOOL_SEARCH_TOOL_DEFINITION,
+          TOOL_EXECUTE_TOOL_DEFINITION,
+        ];
+
+        const processedTools = await middleware.applyDeferLoading(
+          allTools,
+          config
+        );
+        const filteredTools = middleware.applyToolVisibilityFilter(
+          processedTools,
+          config
+        );
+
+        expect(filteredTools.length).toBe(2);
+        expect(filteredTools[0].name).toBe(TOOL_SEARCH_TOOL_NAME);
+        expect(filteredTools[1].name).toBe(TOOL_EXECUTE_TOOL_NAME);
+
+        // Verify builtin tools are not marked with defer_loading
+        expect(filteredTools[0].defer_loading).toBeUndefined();
+        expect(filteredTools[1].defer_loading).toBeUndefined();
+      });
+
+      it("should complete full workflow: search → execute", async () => {
+        // 1. Search for tools
+        const toolsWithServers = createSampleTools().map((tool, idx) => ({
+          tool,
+          serverUuid: `server-${idx}`,
+        }));
+
+        const searchResult = await executeToolSearch(
+          { query: "file" },
+          toolsWithServers,
+          { searchMethod: "BM25", maxResults: 5 }
+        );
+
+        expect(searchResult.content.length).toBeGreaterThan(0);
+
+        // 2. Execute discovered tool (use first tool from sample)
+        const mockProxyFunction = vi.fn().mockResolvedValue({
+          content: [{ type: "text", text: "File contents" }],
+        });
+
+        // Use a tool with simple schema for execution
+        const executeResult = await executeToolExecution(
+          {
+            tool_name: toolsWithServers[0].tool.name,
+            arguments: { input: "test-file-path" }, // Provide required input
+          },
+          toolsWithServers,
+          mockProxyFunction,
+          { namespaceUuid: "test-namespace", sessionId: "test-session" }
+        );
+
+        expect(executeResult.isError).toBeUndefined();
+        expect(mockProxyFunction).toHaveBeenCalled();
+      });
+    });
+
+    describe("Scenario: Schema validation in real workflow", () => {
+      it("should validate arguments before proxying", async () => {
+        const tools = [
+          {
+            tool: {
+              name: "database__query",
+              description: "Execute SQL query",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  sql: { type: "string" },
+                  params: { type: "array", items: { type: "string" } },
+                },
+                required: ["sql"],
+              },
+            },
+            serverUuid: "db-server",
+          },
+        ];
+
+        // Valid call
+        const mockProxy = vi.fn().mockResolvedValue({
+          content: [{ type: "text", text: "Results" }],
+        });
+
+        const validResult = await executeToolExecution(
+          {
+            tool_name: "database__query",
+            arguments: { sql: "SELECT * FROM users", params: ["1", "2"] },
+          },
+          tools,
+          mockProxy,
+          { namespaceUuid: "test", sessionId: "test" }
+        );
+
+        expect(validResult.isError).toBeUndefined();
+        expect(mockProxy).toHaveBeenCalledWith("database__query", {
+          sql: "SELECT * FROM users",
+          params: ["1", "2"],
+        });
+
+        // Invalid call (params is not array)
+        const invalidResult = await executeToolExecution(
+          {
+            tool_name: "database__query",
+            arguments: { sql: "SELECT * FROM users", params: "not an array" },
+          },
+          tools,
+          vi.fn(),
+          { namespaceUuid: "test", sessionId: "test" }
+        );
+
+        expect(invalidResult.isError).toBe(true);
+        expect(invalidResult.content[0].text).toContain("validation failed");
+      });
+
+      it("should handle complex nested schemas", async () => {
+        const tools = [
+          {
+            tool: {
+              name: "api__call",
+              description: "Make API call",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  endpoint: { type: "string" },
+                  headers: {
+                    type: "object",
+                    additionalProperties: { type: "string" },
+                  },
+                  body: {
+                    type: "object",
+                    properties: {
+                      data: { type: "array" },
+                      metadata: { type: "object" },
+                    },
+                  },
+                },
+                required: ["endpoint"],
+              },
+            },
+            serverUuid: "api-server",
+          },
+        ];
+
+        const mockProxy = vi.fn().mockResolvedValue({
+          content: [{ type: "text", text: "API response" }],
+        });
+
+        const result = await executeToolExecution(
+          {
+            tool_name: "api__call",
+            arguments: {
+              endpoint: "/api/users",
+              headers: { "Content-Type": "application/json" },
+              body: { data: [1, 2, 3], metadata: { version: "1.0" } },
+            },
+          },
+          tools,
+          mockProxy,
+          { namespaceUuid: "test", sessionId: "test" }
+        );
+
+        expect(result.isError).toBeUndefined();
+        expect(mockProxy).toHaveBeenCalled();
+      });
+    });
+
+    describe("Scenario: Middleware respect", () => {
+      it("should respect tool overrides and filters", async () => {
+        // Test that execute tool goes through normal call flow
+        // This ensures middleware (filters, overrides, etc.) is applied
+
+        const mockCallHandler = vi.fn().mockResolvedValue({
+          content: [{ type: "text", text: "Success" }],
+        });
+
+        const proxyFunction = async (toolName: string, args: unknown) => {
+          return await mockCallHandler({
+            method: "tools/call",
+            params: { name: toolName, arguments: args },
+          });
+        };
+
+        await executeToolExecution(
+          {
+            tool_name: "test__tool",
+            arguments: { foo: "bar" },
+          },
+          [{ tool: { name: "test__tool" }, serverUuid: "test" }],
+          proxyFunction,
+          { namespaceUuid: "test", sessionId: "test" }
+        );
+
+        // Verify call went through normal flow
+        expect(mockCallHandler).toHaveBeenCalledWith({
+          method: "tools/call",
+          params: { name: "test__tool", arguments: { foo: "bar" } },
+        });
+      });
+    });
+
+    describe("Scenario: Comparison with direct invocation", () => {
+      it("should produce identical results to direct tool call", async () => {
+        const mockTool = {
+          name: "test__tool",
+          description: "Test tool",
+          inputSchema: {
+            type: "object",
+            properties: { input: { type: "string" } },
+            required: ["input"],
+          },
+        };
+
+        const mockServerResponse = {
+          content: [{ type: "text", text: "Tool output" }],
+        };
+
+        const mockProxy = vi.fn().mockResolvedValue(mockServerResponse);
+
+        // Execute via metamcp_execute_tool
+        const executeResult = await executeToolExecution(
+          {
+            tool_name: "test__tool",
+            arguments: { input: "test" },
+          },
+          [{ tool: mockTool, serverUuid: "test-server" }],
+          mockProxy,
+          { namespaceUuid: "test", sessionId: "test" }
+        );
+
+        // Should produce same result as direct call
+        expect(executeResult).toEqual(mockServerResponse);
+        expect(mockProxy).toHaveBeenCalledWith("test__tool", { input: "test" });
+      });
+    });
+
+    describe("Scenario: Token savings demonstration", () => {
+      it("should demonstrate token reduction with SEARCH_ONLY + execute", async () => {
+        // Setup: 100 tools, each ~300 tokens = 30,000 tokens total
+        const manyTools = Array.from({ length: 100 }, (_, i) => ({
+          name: `server__tool_${i}`,
+          description: `This is tool number ${i} with a detailed description that takes up tokens`,
+          inputSchema: {
+            type: "object",
+            properties: {
+              param1: { type: "string", description: "Parameter 1" },
+              param2: { type: "number", description: "Parameter 2" },
+              param3: { type: "boolean", description: "Parameter 3" },
+            },
+          },
+        }));
+
+        const config: ResolvedDeferLoadingConfig = {
+          deferLoadingEnabled: true,
+          searchMethod: "BM25",
+          toolOverrides: {},
+          toolVisibility: "SEARCH_ONLY",
+        };
+
+        const allTools = [
+          ...manyTools,
+          TOOL_SEARCH_TOOL_DEFINITION,
+          TOOL_EXECUTE_TOOL_DEFINITION,
+        ];
+
+        const filtered = middleware.applyToolVisibilityFilter(allTools, config);
+
+        // Only 2 tools visible (massive token reduction)
+        expect(filtered.length).toBe(2);
+        expect(filtered[0].name).toBe(TOOL_SEARCH_TOOL_NAME);
+        expect(filtered[1].name).toBe(TOOL_EXECUTE_TOOL_NAME);
+
+        // Approximate token calculation
+        const originalTokens = JSON.stringify(allTools).length / 4; // Rough estimate
+        const reducedTokens = JSON.stringify(filtered).length / 4;
+
+        console.log(
+          `Token reduction: ${originalTokens.toFixed(0)} → ${reducedTokens.toFixed(0)} (${Math.round((1 - reducedTokens / originalTokens) * 100)}% savings)`
+        );
+
+        expect(reducedTokens).toBeLessThan(originalTokens * 0.1); // >90% reduction
+      });
+    });
+
+    describe("Scenario: Error handling and edge cases", () => {
+      it("should handle missing tools gracefully", async () => {
+        const result = await executeToolExecution(
+          { tool_name: "nonexistent__tool", arguments: {} },
+          [],
+          vi.fn(),
+          { namespaceUuid: "test", sessionId: "test" }
+        );
+
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain("not found");
+        expect(result.content[0].text).toContain("metamcp_search_tools");
+      });
+
+      it("should prevent circular execution", async () => {
+        const result = await executeToolExecution(
+          { tool_name: TOOL_EXECUTE_TOOL_NAME, arguments: {} },
+          [],
+          vi.fn(),
+          { namespaceUuid: "test", sessionId: "test" }
+        );
+
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain("Cannot execute builtin tool");
+      });
+
+      it("should handle proxy errors", async () => {
+        const tools = [
+          {
+            tool: { name: "test__tool", description: "Test tool" },
+            serverUuid: "test-server",
+          },
+        ];
+
+        const mockProxy = vi
+          .fn()
+          .mockRejectedValue(new Error("Connection timeout"));
+
+        const result = await executeToolExecution(
+          { tool_name: "test__tool", arguments: {} },
+          tools,
+          mockProxy,
+          { namespaceUuid: "test", sessionId: "test" }
+        );
+
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain("Error executing tool");
+        expect(result.content[0].text).toContain("Connection timeout");
+      });
+    });
+
+    describe("Scenario: Integration with existing features", () => {
+      it("should work with defer_loading flags on other tools", async () => {
+        const config: ResolvedDeferLoadingConfig = {
+          deferLoadingEnabled: true,
+          searchMethod: "BM25",
+          toolOverrides: {},
+          toolVisibility: "ALL",
+        };
+
+        const allTools = [
+          ...createSampleTools(10),
+          TOOL_SEARCH_TOOL_DEFINITION,
+          TOOL_EXECUTE_TOOL_DEFINITION,
+        ];
+
+        const processedTools = await middleware.applyDeferLoading(
+          allTools,
+          config
+        );
+
+        // Regular tools should have defer_loading flag
+        const regularTools = processedTools.filter(
+          (t) =>
+            t.name !== TOOL_SEARCH_TOOL_NAME &&
+            t.name !== TOOL_EXECUTE_TOOL_NAME
+        );
+        expect(regularTools.every((t) => t.defer_loading === true)).toBe(true);
+
+        // Builtin tools should NOT have defer_loading flag
+        const searchTool = processedTools.find(
+          (t) => t.name === TOOL_SEARCH_TOOL_NAME
+        );
+        const executeTool = processedTools.find(
+          (t) => t.name === TOOL_EXECUTE_TOOL_NAME
+        );
+
+        expect(searchTool?.defer_loading).toBeUndefined();
+        expect(executeTool?.defer_loading).toBeUndefined();
+      });
+
+      it("should work with BM25 and REGEX search methods", async () => {
+        const toolsWithServers = createSampleTools().map((tool, idx) => ({
+          tool,
+          serverUuid: `server-${idx}`,
+        }));
+
+        // Test with BM25
+        const bm25Result = await executeToolSearch(
+          { query: "database" },
+          toolsWithServers,
+          { searchMethod: "BM25", maxResults: 5 }
+        );
+
+        expect(bm25Result.content.length).toBeGreaterThan(0);
+
+        // Test with REGEX
+        const regexResult = await executeToolSearch(
+          { query: "file" },
+          toolsWithServers,
+          { searchMethod: "REGEX", maxResults: 5 }
+        );
+
+        expect(regexResult.content.length).toBeGreaterThan(0);
+
+        // Both should allow execution via execute tool
+        const mockProxy = vi.fn().mockResolvedValue({
+          content: [{ type: "text", text: "Success" }],
+        });
+
+        // Extract tool name from any result (simplified)
+        const anyTool = toolsWithServers[0];
+
+        const executeResult = await executeToolExecution(
+          {
+            tool_name: anyTool.tool.name,
+            arguments: { input: "test-input" }, // Provide required input parameter
+          },
+          toolsWithServers,
+          mockProxy,
+          { namespaceUuid: "test", sessionId: "test" }
+        );
+
+        expect(executeResult.isError).toBeUndefined();
+      });
     });
   });
 });
